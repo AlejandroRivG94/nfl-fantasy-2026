@@ -79,7 +79,7 @@ function addVOR_toBigBoard() {
       'IF(P'+r+'>45,"Ronda 5 — Flex sólido",'+
       'IF(P'+r+'>30,"Rondas 6-7",'+
       'IF(P'+r+'>20,"Rondas 7-9",'+
-      'IF(P'+r+'>10,"Rondas 10-11","Ronda 12+"))'
+      'IF(P'+r+'>10,"Rondas 10-11","Ronda 12+")'
       + '))))))))'
     );
 
