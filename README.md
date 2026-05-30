@@ -11,9 +11,11 @@ Correr en este orden desde **Extensions → Apps Script** en el Google Sheet:
 |---|---------|---------|-----|
 | 1 | `output/nfl_fantasy_2026_PLAYERS.gs` | `updatePlayersDB_2026_VERIFIED()` | Players DB |
 | 2 | `output/nfl_fantasy_2026_SCORING.gs` | `updateScoringCalc_2026_VERIFIED()` | Scoring Calc |
-| 3 | `output/nfl_fantasy_2026_BIGBOARD.gs` | `runAllVerified_2026()` | Big Board |
+| 3 | `output/nfl_fantasy_2026_BIGBOARD.gs` | `runAllVerified_2026()` | Big Board (nombres + grades + **VLOOKUPs B-M** + sort) |
 | 4 | `output/nfl_fantasy_2026_VOR.gs` | `addFullDraftAnalysis()` | Big Board (VOR) + Draft Strategy |
 | 5 | `output/nfl_fantasy_2026_TABS.gs` | `runRemainingTabs_2026()` | SoS + OL Grades + Schedule Flags + OC Changes |
+
+> **Si el Big Board ya tiene nombres pero columnas B-M vacías:** corre solo `setupBigBoardFormulas_2026()` (en BIGBOARD.gs) para instalar los VLOOKUPs sin borrar los datos existentes.
 
 ## Estructura
 

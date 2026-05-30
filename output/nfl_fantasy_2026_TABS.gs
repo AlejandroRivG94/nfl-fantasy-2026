@@ -535,7 +535,10 @@ function updateOCChanges_2026() {
   var sheet = ss.getSheetByName('OC Changes');
   if (!sheet) { sheet = ss.insertSheet('OC Changes'); }
   var lastRow = sheet.getLastRow();
-  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 8).clearContent();
+  var clearRows = Math.max(lastRow > 1 ? lastRow - 1 : 1, 50);
+  var clearRange = sheet.getRange(2, 1, clearRows, 8);
+  clearRange.clearContent();
+  clearRange.clearDataValidations(); // elimina dropdowns que bloquean setValues()
 
   // Headers
   sheet.getRange(1, 1, 1, 8).setValues([[

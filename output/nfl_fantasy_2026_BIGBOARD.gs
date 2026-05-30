@@ -278,6 +278,85 @@ function fixBigBoard_2026_VERIFIED() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Poblar Big Board columnas B-M leyendo valores directamente de los tabs fuente
+// Más robusto que VLOOKUP cross-sheet. Correr después de fixBigBoard_2026_VERIFIED()
+// ─────────────────────────────────────────────────────────────────────────────
+function setupBigBoardFormulas_2026() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // ── Players DB → mapa nombre: fila completa ─────────────────────────────────
+  var playersData = ss.getSheetByName('Players DB').getDataRange().getValues();
+  var pMap = {};
+  for (var i = 1; i < playersData.length; i++) {
+    if (playersData[i][0]) pMap[playersData[i][0]] = playersData[i];
+  }
+
+  // ── Scoring Calc → mapa nombre: fila completa ───────────────────────────────
+  // Columnas L-O (índices 11-14) = PPR / HalfPPR / Standard / Custom Points
+  var scoringData = ss.getSheetByName('Scoring Calc').getDataRange().getValues();
+  var sMap = {};
+  for (var i = 1; i < scoringData.length; i++) {
+    if (scoringData[i][0]) sMap[scoringData[i][0]] = scoringData[i];
+  }
+
+  // ── Schedule Flags → mapa equipo: fila completa ─────────────────────────────
+  // Columna J (índice 9) = Playoff_Schedule_Rating
+  var schedData = ss.getSheetByName('Schedule Flags').getDataRange().getValues();
+  var schMap = {};
+  for (var i = 1; i < schedData.length; i++) {
+    if (schedData[i][0]) schMap[schedData[i][0]] = schedData[i];
+  }
+
+  // ── Big Board: leer col A (nombres), escribir B-M ───────────────────────────
+  var bbSheet  = ss.getSheetByName('Big Board');
+  var bbLastRow = bbSheet.getLastRow();
+  if (bbLastRow < 2) {
+    SpreadsheetApp.getUi().alert('⚠️ Big Board vacío. Corre primero fixBigBoard_2026_VERIFIED()');
+    return;
+  }
+
+  var names = bbSheet.getRange(2, 1, bbLastRow - 1, 1).getValues();
+  var out   = [];
+
+  for (var j = 0; j < names.length; j++) {
+    var name = names[j][0];
+    if (!name) { out.push(['','','','','','','','','','','','']); continue; }
+
+    var pd  = pMap[name]  || null;
+    var sc  = sMap[name]  || null;
+    var sch = (pd && pd[2]) ? (schMap[pd[2]] || null) : null;
+
+    out.push([
+      pd  ? pd[1]  : '',   // B: Position        (Players DB col B, índice 1)
+      pd  ? pd[2]  : '',   // C: Team             (índice 2)
+      pd  ? pd[3]  : '',   // D: Tier             (índice 3)
+      sc  ? sc[14] : '',   // E: Custom_Points    (Scoring Calc col O, índice 14)
+      sc  ? sc[11] : '',   // F: PPR_Points       (col L, índice 11)
+      sc  ? sc[12] : '',   // G: HalfPPR_Points   (col M, índice 12)
+      sc  ? sc[13] : '',   // H: Standard_Points  (col N, índice 13)
+      pd  ? pd[4]  : '',   // I: ADP_FantasyPros  (índice 4)
+      pd  ? pd[5]  : '',   // J: ADP_Underdog     (índice 5)
+      pd  ? pd[10] : '',   // K: Playoff_SoS      (índice 10)
+      pd  ? pd[7]  : '',   // L: OC_Change        (índice 7)
+      sch ? sch[9] : ''    // M: Schedule_Rating  (Schedule Flags col J, índice 9)
+    ]);
+  }
+
+  bbSheet.getRange(2, 2, out.length, 12).setValues(out);
+  SpreadsheetApp.flush();
+
+  var filled = out.filter(function(r) { return r[0] !== ''; }).length;
+  SpreadsheetApp.getUi().alert(
+    '✅ Big Board actualizado: ' + filled + ' jugadores con datos.\n\n' +
+    'Columnas B-M desde:\n' +
+    '  • Players DB → Position, Team, Tier, ADP, Playoff_SoS, OC_Change\n' +
+    '  • Scoring Calc → Custom, PPR, HalfPPR, Standard Points\n' +
+    '  • Schedule Flags → Schedule_Rating\n\n' +
+    'Ahora corre sortBigBoardByCustom_2026()'
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Ordenar Big Board por Custom Points (columna E) — correr DESPUÉS del VLOOKUP
 // ─────────────────────────────────────────────────────────────────────────────
 function sortBigBoardByCustom_2026() {
@@ -330,11 +409,14 @@ function runAllVerified_2026() {
   // 3. Big Board con ADP correcto
   fixBigBoard_2026_VERIFIED();
 
-  // 4. Flush para que los VLOOKUPs calculen
-  SpreadsheetApp.flush();
-  Utilities.sleep(3000); // 3 segundos
+  // 4. Instalar fórmulas VLOOKUP en columnas B-M
+  setupBigBoardFormulas_2026();
 
-  // 5. Ordenar por Custom Points
+  // 5. Flush + pausa para que los VLOOKUPs calculen
+  SpreadsheetApp.flush();
+  Utilities.sleep(5000); // 5 segundos
+
+  // 6. Ordenar por Custom Points
   sortBigBoardByCustom_2026();
 
   ui.alert(
