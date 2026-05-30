@@ -201,7 +201,39 @@ function _setupImportTab(sheet, tabName) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HELPER — parsea una línea CSV respetando valores entre comillas
+// Maneja casos como: Jahmyr Gibbs,"DET",267.6,"1,337.5","14.6"
+// ─────────────────────────────────────────────────────────────────────────────
+function _parseCSVLine(line) {
+  var result = [];
+  var current = '';
+  var inQuotes = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"') {
+      inQuotes = !inQuotes;
+    } else if (c === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += c;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 2. PARSER — convierte CSV de FantasyPros al formato estándar en FP_Import
+//
+// Soporta DOS formatos de pegado:
+//   A) Datos separados en columnas (paste normal de Google Sheets)
+//   B) Todo en columna A como texto CSV (lo que pasa frecuentemente)
+//
+// Formato real del export de FantasyPros (simplificado sin Rank/AVG/TGT):
+//   RB:    Player | Team | ATT | YDS | TDS | REC | YDS | TDS | FL | FPTS
+//   QB:    Player | Team | CMP | ATT | PCT | YDS | TDS | INT | ATT | YDS | TDS | FL | FPTS
+//   WR/TE: Player | Team | REC | YDS | TDS | ATT | YDS | TDS | FL | FPTS
 // ─────────────────────────────────────────────────────────────────────────────
 function parseFPProjections_2026() {
   var ss        = SpreadsheetApp.getActiveSpreadsheet();
@@ -213,83 +245,111 @@ function parseFPProjections_2026() {
     return;
   }
 
-  var raw   = rawSheet.getDataRange().getValues();
-  var rows  = [];
-  var mode  = null; // 'QB' | 'RB' | 'WR_TE'
+  var raw  = rawSheet.getDataRange().getValues();
+  var rows = [];
+  var mode = null;
 
   for (var i = 0; i < raw.length; i++) {
-    var row  = raw[i];
-    var col0 = String(row[0]).trim().toUpperCase();
-    var col1 = String(row[1]).trim();
+    var rowRaw = raw[i];
 
-    // Detect header rows to determine current position group
-    if (col1 === 'PLAYER' || col1 === 'Player') {
-      // Detect mode by looking at column headers
-      var headers = row.map(function(c) { return String(c).trim().toUpperCase(); });
-      if (headers.indexOf('CMP') >= 0 || headers.indexOf('PCT') >= 0) {
-        mode = 'QB';
-      } else if (headers.indexOf('ATT') >= 0 && headers.indexOf('REC') >= 0) {
-        // RB: has both ATT (rush) and REC
-        // WR/TE: has REC before ATT (or no ATT)
-        var attIdx = headers.indexOf('ATT');
-        var recIdx = headers.indexOf('REC');
-        mode = (attIdx < recIdx) ? 'RB' : 'WR_TE';
-      } else if (headers.indexOf('REC') >= 0) {
-        mode = 'WR_TE';
-      }
-      continue; // skip header row
+    // ── Detectar si los datos están en columna A como texto CSV ──────────────
+    var isRawText = (String(rowRaw[1]).trim() === '') &&
+                    (String(rowRaw[0]).indexOf(',') >= 0);
+
+    var cols;
+    if (isRawText) {
+      cols = _parseCSVLine(String(rowRaw[0]));
+    } else {
+      cols = rowRaw.map(function(c) { return String(c).trim(); });
     }
 
-    // Skip empty rows, rank rows, or non-player rows
-    if (!col1 || col1 === '' || !isNaN(parseInt(col0)) === false) continue;
-    // FP format: row[0]=Rank (number), row[1]=Player Name
-    if (isNaN(parseInt(col0))) continue;
+    if (!cols || cols.length < 2) continue;
 
-    // Normalize player name (FP format: "FirstName LastName, TEAM")
-    var playerName = col1.replace(/,\s*[A-Z]{2,3}$/, '').trim();
+    var p0 = cols[0].trim();
+    var p1 = cols[1] ? cols[1].trim() : '';
+    var p0up = p0.toUpperCase();
+
+    // ── Detectar fila de headers ──────────────────────────────────────────────
+    if (p0up === 'PLAYER') {
+      var hdrs = cols.map(function(c) { return c.toUpperCase().replace(/"/g, ''); });
+      if (hdrs.indexOf('CMP') >= 0 || hdrs.indexOf('PCT') >= 0) {
+        mode = 'QB';
+      } else {
+        var attIdx = hdrs.indexOf('ATT');
+        var recIdx = hdrs.indexOf('REC');
+        if (attIdx >= 0 && recIdx >= 0) {
+          mode = (attIdx < recIdx) ? 'RB' : 'WR_TE';
+        } else if (recIdx >= 0) {
+          mode = 'WR_TE';
+        }
+      }
+      continue;
+    }
+
+    // ── Saltar filas vacías o de separación ──────────────────────────────────
+    if (!p0 || p0 === '' || p0 === '--') continue;
+    // Saltar filas donde col0 es un número (rank) — formato viejo FP
+    if (!isNaN(parseFloat(p0)) && p0.indexOf('.') === -1 && parseFloat(p0) < 300) continue;
+
+    // ── Nombre del jugador ────────────────────────────────────────────────────
+    // En el formato simplificado: Player=col0, Team=col1
+    var playerName = p0.replace(/"/g, '').trim();
+    // Eliminar sufijo de equipo si está en el nombre: "Josh Allen, BUF" → "Josh Allen"
+    playerName = playerName.replace(/,\s*[A-Z]{2,3}$/, '').trim();
+
+    if (!playerName || !mode) continue;
 
     var rec=0, recYds=0, recTDs=0, carries=0, rushYds=0, rushTDs=0,
         comp=0, passYds=0, passTDs=0, ints=0;
 
-    if (mode === 'QB') {
-      // QB: Rank|Player|Team|CMP|ATT|PCT|YDS|AVG|TD|INT|ATT|YDS|AVG|TD|FL|G|FPTS
-      comp    = _n(row[3]);   // CMP
-      // passYds = row[6], passTDs = row[8], ints = row[9]
-      passYds = _n(row[6]);
-      passTDs = _n(row[8]);
-      ints    = _n(row[9]);
-      carries = _n(row[10]);  // rushing ATT (second ATT column)
-      rushYds = _n(row[11]);
-      rushTDs = _n(row[13]);
+    if (mode === 'RB') {
+      // Player(0) | Team(1) | ATT/carries(2) | RushYds(3) | RushTDs(4)
+      // | Rec(5) | RecYds(6) | RecTDs(7) | FL(8) | FPTS(9)
+      carries = _n(cols[2]);
+      rushYds = _n(cols[3]);
+      rushTDs = _n(cols[4]);
+      rec     = _n(cols[5]);
+      recYds  = _n(cols[6]);
+      recTDs  = _n(cols[7]);
 
-    } else if (mode === 'RB') {
-      // RB: Rank|Player|Team|ATT|YDS|AVG|TDS|REC|TGT|YDS|AVG|TDS|FL|G|FPTS
-      carries = _n(row[3]);
-      rushYds = _n(row[4]);
-      rushTDs = _n(row[6]);
-      rec     = _n(row[7]);
-      recYds  = _n(row[9]);
-      recTDs  = _n(row[11]);
+    } else if (mode === 'QB') {
+      // Player(0) | Team(1) | CMP(2) | PassAtt(3) | PCT(4) | PassYds(5)
+      // | PassTDs(6) | INT(7) | RushAtt(8) | RushYds(9) | RushTDs(10) | FL(11) | FPTS(12)
+      comp    = _n(cols[2]);
+      passYds = _n(cols[5]);
+      passTDs = _n(cols[6]);
+      ints    = _n(cols[7]);
+      carries = _n(cols[8]);
+      rushYds = _n(cols[9]);
+      rushTDs = _n(cols[10]);
 
     } else if (mode === 'WR_TE') {
-      // WR/TE: Rank|Player|Team|REC|TGT|YDS|AVG|TDS|ATT|YDS|AVG|TDS|FL|G|FPTS
-      rec     = _n(row[3]);
-      recYds  = _n(row[5]);
-      recTDs  = _n(row[7]);
-      carries = _n(row[8]);   // rush attempts (usually 0 for most WRs)
-      rushYds = _n(row[9]);
-      rushTDs = _n(row[11]);
+      // Player(0) | Team(1) | Rec(2) | RecYds(3) | RecTDs(4)
+      // | RushAtt(5) | RushYds(6) | RushTDs(7) | FL(8) | FPTS(9)
+      rec     = _n(cols[2]);
+      recYds  = _n(cols[3]);
+      recTDs  = _n(cols[4]);
+      carries = _n(cols[5]);
+      rushYds = _n(cols[6]);
+      rushTDs = _n(cols[7]);
     }
 
-    rows.push([playerName, rec, recYds, recTDs, carries, rushYds, rushTDs, comp, passYds, passTDs, ints]);
+    rows.push([playerName, rec, recYds, recTDs, carries, rushYds, rushTDs,
+               comp, passYds, passTDs, ints]);
   }
 
   if (rows.length === 0) {
-    SpreadsheetApp.getUi().alert('⚠️ No se encontraron datos en FP_Raw. Verifica que pegaste el CSV correctamente (fila 10+).');
+    SpreadsheetApp.getUi().alert(
+      '⚠️ No se encontraron datos en FP_Raw.\n\n' +
+      'Verifica que:\n' +
+      '1. Pegaste el CSV debajo de la línea "▼ PEGA EL CSV ABAJO"\n' +
+      '2. El CSV incluye la fila de headers (Player, Team, ATT...)\n' +
+      '3. Pegaste al menos RB — QB, WR, TE pueden agregarse después'
+    );
     return;
   }
 
-  // Write to FP_Import (after header row at row 7)
+  // Escribir en FP_Import
   var headerRow = _findHeaderRow(destSheet);
   var writeRow  = headerRow + 1;
   var existing  = destSheet.getLastRow() - writeRow + 1;
@@ -297,10 +357,20 @@ function parseFPProjections_2026() {
   destSheet.getRange(writeRow, 1, rows.length, 11).setValues(rows);
 
   SpreadsheetApp.flush();
+
+  // Contar por posición
+  var rbCount  = rows.filter(function(r) { return _n(r[4]) > 0 && _n(r[7]) === 0; }).length;
+  var qbCount  = rows.filter(function(r) { return _n(r[7]) > 0; }).length;
+  var wrteCount = rows.filter(function(r) { return _n(r[4]) === 0 && _n(r[1]) > 0 && _n(r[7]) === 0; }).length;
+
   SpreadsheetApp.getUi().alert(
     '✅ FantasyPros parseado: ' + rows.length + ' jugadores en FP_Import.\n\n' +
-    'Ahora llena ESPN_Import y Yahoo_Import,\n' +
-    'luego corre buildProjectionComparison_2026()'
+    '  Detección aproximada:\n' +
+    '  QBs:    ~' + qbCount + '\n' +
+    '  RBs:    ~' + rbCount + '\n' +
+    '  WR/TE:  ~' + wrteCount + '\n\n' +
+    '⚠️ Revisa FP_Import para confirmar que los datos se parsearon bien.\n' +
+    'Si faltan posiciones, pega sus CSVs en FP_Raw y corre de nuevo.'
   );
 }
 
