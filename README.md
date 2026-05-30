@@ -15,6 +15,7 @@ Correr en este orden desde **Extensions → Apps Script** en el Google Sheet:
 | 4 | `output/nfl_fantasy_2026_VOR.gs` | `addFullDraftAnalysis()` | Big Board (VOR) + Draft Strategy |
 | 5 | `output/nfl_fantasy_2026_TABS.gs` | `runRemainingTabs_2026()` | SoS + OL Grades + Schedule Flags + OC Changes |
 | 6 | `output/nfl_fantasy_2026_DRAFT_SIM.gs` | `createDraftSimulator_2026()` | Draft Simulator (picks + builds + scenarios + stacks) |
+| 7 | `output/nfl_fantasy_2026_PROJECTIONS.gs` | `setupProjectionHub_2026()` | Projection Hub — comparativa FP / ESPN / Yahoo + update Scoring Calc |
 
 > **Si el Big Board ya tiene nombres pero columnas B-M vacías:** corre solo `setupBigBoardFormulas_2026()` (en BIGBOARD.gs) para instalar los VLOOKUPs sin borrar los datos existentes.
 >

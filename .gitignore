@@ -6,7 +6,6 @@ the-architect-main/
 
 # Scripts descartados / versiones anteriores sin verificar
 output/nfl_fantasy_2026_real_data.gs
-output/nfl_fantasy_2026_projections.gs
 output/nfl_fantasy_oc_ol_data.gs
 output/nfl_fantasy_populate_data.gs
 output/nfl_fantasy_setup.gs
