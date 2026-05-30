@@ -136,7 +136,7 @@ Custom = (Rec × 0.8) + (RecYds × 0.1) + (RecTDs × 6)
 
 ## Cola de mejoras futuras
 
-- **Coaching Hub** — expandir OC Changes a HC + DC + OC completo
+- Actualizar proyecciones completas en agosto con CSV de FP, ESPN, Yahoo + Vegas season props
 
 ---
 
