@@ -340,46 +340,59 @@ function createDraftStrategyTab() {
   }
   row += rounds.length + 2;
 
-  // ── SECCIÓN 3: Estrategias según posición de draft ──────────────────────────
-  sheet.getRange(row, 1).setValue('🏆 ESTRATEGIAS RECOMENDADAS SEGÚN POSICIÓN EN EL DRAFT')
-    .setBackground('#1a1f36').setFontColor('#ffffff').setFontWeight('bold').setFontSize(12);
+  // ── SECCIÓN 3: Estrategias según posición — lógica snake real ───────────────
+  // NOTA: R2 muestra quién está REALMENTE DISPONIBLE en tu pick de vuelta (snake)
+  // Pick 1-3  → tu R2 es pick 22-24  (zona ADP 19-25)
+  // Pick 4-6  → tu R2 es pick 19-21  (zona ADP 16-22)
+  // Pick 7-9  → tu R2 es pick 16-18  (zona ADP 13-19)
+  // Pick 10-12 → tu R2 es pick 13-15 (zona ADP 10-16) ← vuelta de snake
+  sheet.getRange(row, 1).setValue(
+    '🏆 ESTRATEGIAS SEGÚN POSICIÓN — Snake draft 12 equipos | R2 = quién REALMENTE está disponible en tu vuelta'
+  ).setBackground('#1a1f36').setFontColor('#ffffff').setFontWeight('bold').setFontSize(12);
   sheet.getRange(row, 1, 1, 6).setBackground('#1a1f36');
   row += 2;
 
-  var stratHeaders = ['Pick','Estrategia','R1','R2','R3','R4-6'];
+  var stratHeaders = ['Pick','Tu R2 (picks)','R1 — Tu pick','R2 — Disponible en tu vuelta','R3 — Tu pick','R4-6 — Prioridad'];
   sheet.getRange(row, 1, 1, 6).setValues([stratHeaders])
     .setBackground('#283593').setFontColor('#ffffff').setFontWeight('bold');
   row++;
 
   var strategies = [
-    ['Pick 1-3','RB Élite First',
-     'Bijan / Gibbs / CMC',
-     'Chase / Nacua / JSN (WR)',
-     'Lamar / Allen (QB) si disponible',
-     'RB2 sólido + McBride/Bowers TE'],
+    ['Pick 1-3',
+     'Picks 22-24',
+     '🏃 Elite RB: Bijan (1) / Gibbs (2) / CMC (6)',
+     '⚡ Josh Allen (ADP 21) si disponible ← STEAL\nSino: Drake London (20) / D.Henry (20) / Chase Brown (19) / K.Walker (19)',
+     '📍 ADP 25-36: Nabers (26) / AJ Brown (29) / Rice (29) / Olave (29)',
+     'RB2 sólido (Hall R3-4) + TE si McBride/Bowers caen (poco probable)'],
 
-    ['Pick 4-6','RB + WR Élite',
-     'J.Taylor / Jeanty / Barkley',
-     'Chase / Jefferson / Lamb (WR)',
-     'Allen / Lamar (QB)',
-     'Travis Etienne + TE top'],
+    ['Pick 4-6',
+     'Picks 19-21',
+     '📍 WR o RB top: JSN (5) / CMC (6) / J.Taylor (7) / ARSB (8)',
+     '⚡ Allen (21) si pick 4-5 ← STEAL\nSino: K.Walker (19) / Chase Brown (19) / Drake London (20) / D.Henry (20)',
+     '📍 ADP 25-36: Josh Jacobs (32) / Kyren Williams (32) / Breece Hall (33)',
+     'Travis Etienne + TE top (Loveland R3-4)'],
 
-    ['Pick 7-9','WR Élite + RB',
-     'JSN / Nacua / Jefferson / Lamb',
-     'J.Cook / O.Hampton / K.Walker (RB)',
-     'Joe Burrow / Hurts (QB)',
-     'Breece Hall + TE'],
+    ['Pick 7-9',
+     'Picks 16-18',
+     '📍 WR Élite: J.Jefferson (10) / J.Cook (11) / CeeDee Lamb (11)',
+     '📍 TE ÉLITE disponible: McBride (17) / Bowers (17) / O.Hampton (17)\nSino: K.Walker (19) / Chase Brown (19)',
+     '📍 ADP 25-36: ADP 22-30 → Jeremiyah Love (23) / Nico Collins (24) / Pickens (24)',
+     'RB2 (Hall/Etienne) + QB valor tardío (Burrow R4 / Hurts R6)'],
 
-    ['Pick 10-12','WR Stack o QB Tardío',
-     'Nabers / AJ Brown / Rashee Rice / Olave',
-     'Jacobs / Williams (RB)',
-     'Tee Higgins / DeVonta (WR)',
-     'Allen R2 si disponible ← ROBO'],
+    ['Pick 10-12',
+     'Picks 13-15 ← VUELTA SNAKE',
+     '📍 WR top final: Jefferson (10) / J.Cook (11) / CeeDee Lamb (11)',
+     '⚡ VUELTA SNAKE = dos picks seguidos:\nJeanty (13) / Achane (13) / McBride (17) / Bowers (17) / Barkley (15)\nPuedes tomar WR R1 + RB élite R2 o viceversa',
+     '📍 ADP 37-48: Tee Higgins (37) / DeVonta Smith (39) / Egbuka (39)',
+     'Allen si cae más tarde de R3 (poco probable) / Burrow R4 / QB valor tardío'],
   ];
   sheet.getRange(row, 1, strategies.length, 6).setValues(strategies);
   for (var r3 = row; r3 < row + strategies.length; r3++) {
-    sheet.getRange(r3, 1, 1, 6).setBackground(r3 % 2 === 0 ? '#e8f5e9' : '#f1f8e9');
+    var bg3 = r3 % 2 === 0 ? '#e8f5e9' : '#f1f8e9';
+    sheet.getRange(r3, 1, 1, 6).setBackground(bg3).setWrap(true);
   }
+  // Highlight vuelta snake (Pick 10-12)
+  sheet.getRange(row + 3, 1, 1, 6).setBackground('#fff9c4');
   row += strategies.length + 2;
 
   // ── SECCIÓN 4: Valores por ADP vs Custom — DINÁMICA desde Big Board ─────────
