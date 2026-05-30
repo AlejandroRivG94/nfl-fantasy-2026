@@ -497,24 +497,28 @@ function _writeStacks(sheet, players, pMap, startRow) {
     { qb: 'Joe Burrow',     rec: "Ja'Marr Chase",      rating: 'A+',  color: '#14532d' },
     { qb: 'Josh Allen',     rec: 'DJ Moore',            rating: 'A+',  color: '#14532d' },
     { qb: 'Jalen Hurts',    rec: 'A.J. Brown',          rating: 'A',   color: '#15803d' },
-    { qb: 'Lamar Jackson',  rec: 'Zay Flowers',         rating: 'A',   color: '#15803d' },
-    { qb: 'Jayden Daniels', rec: 'Terry McLaurin',      rating: 'B+',  color: '#0369a1' },
+    { qb: 'Cam Ward',       rec: 'Carnell Tate',        rating: 'A-',  color: '#166534' }, // NUEVO: Daboll OC (construyó Allen en BUF)
+    { qb: 'Lamar Jackson',  rec: 'Zay Flowers',         rating: 'B+',  color: '#0369a1' }, // Bajado: Minter HC + Doyle OC Año 1 = riesgo
+    { qb: 'Jaxson Dart',    rec: 'Malik Nabers',        rating: 'B+',  color: '#0369a1' }, // NUEVO: Harbaugh HC + Nagy OC = sorpresa
+    { qb: 'Jayden Daniels', rec: 'Terry McLaurin',      rating: 'B',   color: '#6b21a8' }, // Bajado: Blough OC Año 1 = incertidumbre
     { qb: 'Jared Goff',     rec: 'Amon-Ra St. Brown',   rating: 'B+',  color: '#0369a1' },
     { qb: 'Jordan Love',    rec: 'Davante Adams',       rating: 'B',   color: '#6b21a8' },
-    { qb: 'Caleb Williams', rec: 'Rome Odunze',         rating: 'B',   color: '#6b21a8' },
+    { qb: 'Caleb Williams', rec: 'Rome Odunze',         rating: 'B+',  color: '#0369a1' }, // Subido: Ben Johnson HC ÉLITE
     { qb: 'Patrick Mahomes',rec: 'Rashee Rice',         rating: 'B-',  color: '#92400e' },
   ];
 
   var stackAnalysis = {
     'Joe Burrow':      "El stack más explosivo. Chase + Burrow = 634 Custom Pts proyectados. Cuando CIN boom, ambos boom. Burrow cae R4-R5 (ADP 49). Tómalo si Chase es tu R1 y tienes slot QB libre.",
-    'Josh Allen':      "Allen ya produce ~482 Custom Pts solo (QB#1 custom). Moore WR1 BUF (ADP 46). Stack más alto ceiling del draft: suma ~700 Custom Pts. Ambos pueden caer R1 tardío + R4.",
-    'Jalen Hurts':     "Stack establecido. Hurts 448 Custom Pts + Brown 250 = 698. PHI playoff schedule 'Good'. Brown ADP 28 (R2-R3), Hurts ADP 66 (R5-R6). Stack económico en rounds diferentes.",
-    'Lamar Jackson':   "Lamar 449 Custom Pts + Flowers 220 = 669. Ambos en R4 (ADPs 43 y 41.7). Stack de mismo round = posible en posiciones 1-4. BAL run-first limita el ceiling de Flowers vs Chase.",
-    'Jayden Daniels':  "Daniels 444 Custom Pts + McLaurin 220 = 664. Ambos ADP ~57. WAS playoff schedule 'Brutal' es el principal riesgo. Mejor como stack secundario que como núcleo del roster.",
+    'Josh Allen':      "Allen ~401 Custom Pts (FP, corregido). Brady HC + Carmichael OC (15 años con Brees/NO) = sistema sólido. Moore WR1 BUF. Stack BUF suma ~600+ Custom Pts. Carmichael es el OC más subestimado del draft.",
+    'Jalen Hurts':     "Hurts 350 Custom Pts (FP) + Brown 250 = 600. PHI Fangio DC = leads = Brown + Smith consistentes. PHI playoff schedule 'Good'. Hurts ADP 66 (R5-R6). Stack económico.",
+    'Cam Ward':        "🔼 STACK INFRAVALORADO DEL DRAFT. Brian Daboll OC (construyó a Josh Allen en BUF) + Ward = perfil idéntico a Allen. Ward ADP 141 (R12!) para un QB que puede producir 350+ Custom con Daboll. Tate WR2 emergente.",
+    'Lamar Jackson':   "⚠️ RIESGO AUMENTADO: Minter HC + Doyle OC Año 1 en BAL = sistema completamente nuevo. FP proyecta 344 Custom (conservador). Stack Lamar+Flowers BAJA de A a B+ hasta que el sistema se establezca.",
+    'Jaxson Dart':     "🔼 STACK SORPRESA: John Harbaugh HC + Matt Nagy OC = upgrade masivo NYG. Dart Año 2 + Nabers WR1 = ceiling real. Nabers ADP 25.7, Dart ADP 84.7. Stack de bajo costo con upside de élite.",
+    'Jayden Daniels':  "⚠️ David Blough OC Año 1 (ex-QB backup) = mayor incertidumbre que Kingsbury. Daniels sigue siendo dual-threat pero el sistema es la gran incógnita. McLaurin es más seguro que el stack completo.",
     'Jared Goff':      "Stack asimétrico de alto valor. ARSB R1 (ADP 7.7) + Goff R9 (ADP 102). Goff como QB2 tardío con ARSB ya en tu roster = stack de bajo costo. DET schedule 'Neutral'.",
     'Jordan Love':     "Stack de playoff schedule. GB tiene schedule Elite en Wks 15-17. Love R10 (ADP 115) + Adams R4-R5 (ADP 52.7). Stack tardío diseñado para explotar en championship.",
-    'Caleb Williams':  "Stack de upside. Williams Año 3 + Odunze Año 3 = curva de crecimiento. CHI OL 'Pobre' es el riesgo. Schedule playoff 'Good'. Williams ADP 67, Odunze ADP 63.",
-    'Patrick Mahomes': "Stack de piso alto pero ceiling limitado por schedule 'Brutal' en playoffs. Rice regresó de lesión y es WR1 KC. Mahomes siempre produce pero KC Wks 15-17 = difícil. Mejor como stack secundario.",
+    'Caleb Williams':  "🔼 Ben Johnson HC ÉLITE + Press Taylor OC = sistema COMPLETAMENTE diferente. Williams Año 3 en el mejor sistema posible. CHI OL 'Pobre' sigue siendo el riesgo pero el ceiling subió masivamente.",
+    'Patrick Mahomes': "⭐ Eric Bieniemy REGRESA como OC = construyó los 4 Super Bowls. Mahomes + Bieniemy = ceiling máximo. Rice WR1 KC. ADP 88.7 = mayor VOR por pick del draft. Schedule Brutal limita solo en playoffs.",
   };
 
   for (var st = 0; st < stacks.length; st++) {
