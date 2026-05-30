@@ -245,9 +245,10 @@ function parseFPProjections_2026() {
     return;
   }
 
-  var raw  = rawSheet.getDataRange().getValues();
-  var rows = [];
-  var mode = null;
+  var raw     = rawSheet.getDataRange().getValues();
+  var rows    = [];
+  var mode    = null;
+  var idxMap  = null; // índices dinámicos detectados desde el header
 
   for (var i = 0; i < raw.length; i++) {
     var rowRaw = raw[i];
@@ -265,74 +266,99 @@ function parseFPProjections_2026() {
 
     if (!cols || cols.length < 2) continue;
 
-    var p0 = cols[0].trim();
-    var p1 = cols[1] ? cols[1].trim() : '';
+    var p0   = cols[0].replace(/"/g, '').trim();
     var p0up = p0.toUpperCase();
 
-    // ── Detectar fila de headers ──────────────────────────────────────────────
+    // ── Detectar fila de headers → construir mapa de índices dinámico ─────────
     if (p0up === 'PLAYER') {
-      var hdrs = cols.map(function(c) { return c.toUpperCase().replace(/"/g, ''); });
-      if (hdrs.indexOf('CMP') >= 0 || hdrs.indexOf('PCT') >= 0) {
+      var hdrs = cols.map(function(c) { return c.replace(/"/g,'').trim().toUpperCase(); });
+
+      // Detectar modo
+      if (hdrs.indexOf('CMP') >= 0) {
         mode = 'QB';
-      } else {
-        var attIdx = hdrs.indexOf('ATT');
-        var recIdx = hdrs.indexOf('REC');
-        if (attIdx >= 0 && recIdx >= 0) {
-          mode = (attIdx < recIdx) ? 'RB' : 'WR_TE';
-        } else if (recIdx >= 0) {
-          mode = 'WR_TE';
-        }
+      } else if (hdrs.indexOf('REC') >= 0 && hdrs.indexOf('ATT') >= 0) {
+        mode = (hdrs.indexOf('ATT') < hdrs.indexOf('REC')) ? 'RB' : 'WR_TE';
+      } else if (hdrs.indexOf('REC') >= 0) {
+        mode = 'WR_TE'; // TE sin rush ATT
+      } else if (hdrs.indexOf('ATT') >= 0) {
+        mode = 'RB';
       }
-      continue;
+
+      // ── Construir mapa de índices usando el ancla de cada modo ────────────
+      // Localizar todas las ocurrencias de YDS, TDS, ATT (se repiten)
+      var allYds = [], allTds = [], allAtt = [];
+      for (var h = 0; h < hdrs.length; h++) {
+        if (hdrs[h] === 'YDS')                 allYds.push(h);
+        if (hdrs[h] === 'TDS' || hdrs[h] === 'TD') allTds.push(h);
+        if (hdrs[h] === 'ATT')                 allAtt.push(h);
+      }
+      var intIdx = Math.max(hdrs.indexOf('INT'), hdrs.indexOf('INTS'));
+      var cmpIdx = hdrs.indexOf('CMP');
+      var recIdx = hdrs.indexOf('REC');
+
+      if (mode === 'QB') {
+        // QB: ancla = CMP. Todo lo demás relativo a CMP.
+        // Formato: [...] | CMP | PassYds | PassTDs | INT[S] | ATT(rush) | RushYds | RushTDs | FL | FPTS
+        idxMap = {
+          comp:    cmpIdx,
+          passYds: cmpIdx + 1,
+          passTDs: cmpIdx + 2,
+          ints:    intIdx >= 0 ? intIdx : cmpIdx + 3,
+          carries: intIdx >= 0 ? intIdx + 1 : cmpIdx + 4,
+          rushYds: intIdx >= 0 ? intIdx + 2 : cmpIdx + 5,
+          rushTDs: intIdx >= 0 ? intIdx + 3 : cmpIdx + 6,
+          rec: -1, recYds: -1, recTDs: -1
+        };
+
+      } else if (mode === 'RB') {
+        // RB: ancla = primer ATT. Formato: ATT | RushYds | RushTDs | REC | RecYds | RecTDs
+        var a0 = allAtt[0] !== undefined ? allAtt[0] : 2;
+        idxMap = {
+          carries: a0,
+          rushYds: allYds[0] !== undefined ? allYds[0] : a0 + 1,
+          rushTDs: allTds[0] !== undefined ? allTds[0] : a0 + 2,
+          rec:     recIdx >= 0 ? recIdx : a0 + 3,
+          recYds:  allYds[1] !== undefined ? allYds[1] : a0 + 4,
+          recTDs:  allTds[1] !== undefined ? allTds[1] : a0 + 5,
+          comp: -1, passYds: -1, passTDs: -1, ints: -1
+        };
+
+      } else if (mode === 'WR_TE') {
+        // WR/TE: ancla = REC. Formato: REC | RecYds | RecTDs | [ATT | RushYds | RushTDs]
+        idxMap = {
+          rec:     recIdx >= 0 ? recIdx : 2,
+          recYds:  allYds[0] !== undefined ? allYds[0] : (recIdx >= 0 ? recIdx + 1 : 3),
+          recTDs:  allTds[0] !== undefined ? allTds[0] : (recIdx >= 0 ? recIdx + 2 : 4),
+          carries: allAtt.length > 0 ? allAtt[allAtt.length-1] : -1,
+          rushYds: allYds.length > 1 ? allYds[1] : -1,
+          rushTDs: allTds.length > 1 ? allTds[1] : -1,
+          comp: -1, passYds: -1, passTDs: -1, ints: -1
+        };
+      }
+      continue; // saltar la fila de header
     }
 
-    // ── Saltar filas vacías o de separación ──────────────────────────────────
-    if (!p0 || p0 === '' || p0 === '--') continue;
-    // Saltar filas donde col0 es un número (rank) — formato viejo FP
-    if (!isNaN(parseFloat(p0)) && p0.indexOf('.') === -1 && parseFloat(p0) < 300) continue;
+    // ── Saltar filas vacías, separadores o sin mapa de índices ───────────────
+    if (!p0 || p0 === '' || p0 === '--' || !idxMap) continue;
+    if (!isNaN(parseFloat(p0)) && parseFloat(p0) < 300) continue; // skip rank numbers
 
-    // ── Nombre del jugador ────────────────────────────────────────────────────
-    // En el formato simplificado: Player=col0, Team=col1
-    var playerName = p0.replace(/"/g, '').trim();
-    // Eliminar sufijo de equipo si está en el nombre: "Josh Allen, BUF" → "Josh Allen"
-    playerName = playerName.replace(/,\s*[A-Z]{2,3}$/, '').trim();
+    // Nombre del jugador (quitar sufijo de equipo si viene pegado: "Josh Allen, BUF")
+    var playerName = p0.replace(/,\s*[A-Z]{2,3}$/, '').trim();
+    if (!playerName) continue;
 
-    if (!playerName || !mode) continue;
+    // ── Extraer stats usando el mapa dinámico ────────────────────────────────
+    function getCol(idx) { return (idx >= 0 && idx < cols.length) ? _n(cols[idx]) : 0; }
 
-    var rec=0, recYds=0, recTDs=0, carries=0, rushYds=0, rushTDs=0,
-        comp=0, passYds=0, passTDs=0, ints=0;
-
-    if (mode === 'RB') {
-      // Player(0) | Team(1) | ATT/carries(2) | RushYds(3) | RushTDs(4)
-      // | Rec(5) | RecYds(6) | RecTDs(7) | FL(8) | FPTS(9)
-      carries = _n(cols[2]);
-      rushYds = _n(cols[3]);
-      rushTDs = _n(cols[4]);
-      rec     = _n(cols[5]);
-      recYds  = _n(cols[6]);
-      recTDs  = _n(cols[7]);
-
-    } else if (mode === 'QB') {
-      // Player(0) | Team(1) | CMP(2) | PassAtt(3) | PCT(4) | PassYds(5)
-      // | PassTDs(6) | INT(7) | RushAtt(8) | RushYds(9) | RushTDs(10) | FL(11) | FPTS(12)
-      comp    = _n(cols[2]);
-      passYds = _n(cols[5]);
-      passTDs = _n(cols[6]);
-      ints    = _n(cols[7]);
-      carries = _n(cols[8]);
-      rushYds = _n(cols[9]);
-      rushTDs = _n(cols[10]);
-
-    } else if (mode === 'WR_TE') {
-      // Player(0) | Team(1) | Rec(2) | RecYds(3) | RecTDs(4)
-      // | RushAtt(5) | RushYds(6) | RushTDs(7) | FL(8) | FPTS(9)
-      rec     = _n(cols[2]);
-      recYds  = _n(cols[3]);
-      recTDs  = _n(cols[4]);
-      carries = _n(cols[5]);
-      rushYds = _n(cols[6]);
-      rushTDs = _n(cols[7]);
-    }
+    var rec     = getCol(idxMap.rec);
+    var recYds  = getCol(idxMap.recYds);
+    var recTDs  = getCol(idxMap.recTDs);
+    var carries = getCol(idxMap.carries);
+    var rushYds = getCol(idxMap.rushYds);
+    var rushTDs = getCol(idxMap.rushTDs);
+    var comp    = getCol(idxMap.comp);
+    var passYds = getCol(idxMap.passYds);
+    var passTDs = getCol(idxMap.passTDs);
+    var ints    = getCol(idxMap.ints);
 
     rows.push([playerName, rec, recYds, recTDs, carries, rushYds, rushTDs,
                comp, passYds, passTDs, ints]);
