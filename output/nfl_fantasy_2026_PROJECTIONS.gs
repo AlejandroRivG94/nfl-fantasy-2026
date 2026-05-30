@@ -15,9 +15,14 @@
  *   Player | Rec | RecYds | RecTDs | Carries | RushYds | RushTDs | Comp | PassYds | PassTDs | INTs
  *
  * FUENTES:
- *   FP   → fantasypros.com/nfl/projections/[pos].php → Export CSV → pega en FP_Raw
- *   ESPN → fantasy.espn.com → Rankings → Export        → pega en ESPN_Import (formato estándar)
- *   Yahoo→ football.fantasysports.yahoo.com → Projections → pega en Yahoo_Import (formato estándar)
+ *   FP        → fantasypros.com/nfl/projections/[pos].php → Export CSV → pega en FP_Raw
+ *   ESPN      → fantasy.espn.com → Rankings → Export → pega en ESPN_Import (formato estándar)
+ *   Yahoo     → football.fantasysports.yahoo.com → Projections → pega en Yahoo_Import
+ *   Underdog  → underdogfantasy.com/blog → "Season Projections" → pega en Underdog_Import
+ *   Vegas     → FanDuel/DraftKings season props → pega líneas en Vegas_Import
+ *              (disponibles en agosto pre-temporada — una columna por stat)
+ *   Sleeper   → fetchSleeperProjections_2026() intenta auto-fetch (API gratuita)
+ *              (datos semanales, disponibles desde Week 1 preseason)
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,11 +43,14 @@ function setupProjectionHub_2026() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   var tabs = [
-    { name: 'Projection Hub',  fn: _setupHubTab    },
-    { name: 'FP_Raw',          fn: _setupFPRawTab  },
-    { name: 'FP_Import',       fn: _setupImportTab },
-    { name: 'ESPN_Import',     fn: _setupImportTab },
-    { name: 'Yahoo_Import',    fn: _setupImportTab },
+    { name: 'Projection Hub',   fn: _setupHubTab    },
+    { name: 'FP_Raw',           fn: _setupFPRawTab  },
+    { name: 'FP_Import',        fn: _setupImportTab },
+    { name: 'ESPN_Import',      fn: _setupImportTab },
+    { name: 'Yahoo_Import',     fn: _setupImportTab },
+    { name: 'Underdog_Import',  fn: _setupImportTab },
+    { name: 'Vegas_Import',     fn: _setupVegasTab  },
+    { name: 'Sleeper_Import',   fn: _setupImportTab },
   ];
 
   tabs.forEach(function(t) {
@@ -108,12 +116,52 @@ function _setupFPRawTab(sheet) {
     .setBackground('#374151').setFontColor('#f9fafb').setFontWeight('bold');
 }
 
+function _setupVegasTab(sheet) {
+  var r = 1;
+  sheet.getRange(r, 1, 1, 12).merge()
+    .setValue('🎰  Vegas_Import — Líneas de temporada completa (FanDuel / DraftKings / BetMGM)')
+    .setBackground('#1a1f36').setFontColor('#f5c518').setFontWeight('bold').setFontSize(13);
+  r++;
+
+  var notes = [
+    ['⚠️ DISPONIBILIDAD:', 'Las season props se publican en AGOSTO, semanas antes del inicio de temporada regular. No existen antes de preseason.'],
+    ['FUENTE FanDuel:',    'sportsbook.fanduel.com → NFL → Player Props → Season → filtra por "Passing/Rushing/Receiving Yards"'],
+    ['FUENTE DraftKings:', 'sportsbook.draftkings.com → NFL → Player Props → Season → mismo proceso'],
+    ['QUÉ BUSCAR:',        'Season Passing Yards O/U | Season Rushing Yards O/U | Season TDs O/U | Season Receptions O/U | Season Receiving Yards O/U'],
+    ['CÓMO USAR LA LÍNEA:','El número de la línea (ej: "Josh Allen 640.5 Rush Yds") ES la proyección del mercado. Úsala como el valor de esa estadística.'],
+    ['PARA STATS SIN PROP:','Si no hay prop de completions o carries exactas, usa 0 — el Custom Points se calculará con los stats disponibles.'],
+    ['VENTAJA REAL:',      'Las líneas de Vegas son las proyecciones más "honestas" — están respaldadas por dinero real de apostadores profesionales (sharp money).'],
+  ];
+  notes.forEach(function(row, i) {
+    var bg = i % 2 === 0 ? '#0d1117' : '#1a1f36';
+    var tc = i === 0 ? '#f5c518' : '#e2e8f0';
+    sheet.getRange(r, 1).setValue(row[0]).setBackground(bg).setFontColor(tc).setFontWeight('bold');
+    sheet.getRange(r, 2, 1, 11).merge().setValue(row[1]).setBackground(bg).setFontColor('#e2e8f0');
+    r++;
+  });
+
+  r++;
+  sheet.getRange(r, 1, 1, 12).merge()
+    .setValue('FORMATO: mismas columnas que las otras fuentes — usa la línea del prop como el valor de cada stat')
+    .setBackground('#374151').setFontColor('#d1d5db').setFontStyle('italic');
+  r++;
+
+  var headers = ['Player','Rec','RecYds','RecTDs','Carries','RushYds','RushTDs','Comp','PassYds','PassTDs','INTs'];
+  sheet.getRange(r, 1, 1, 11).setValues([headers])
+    .setBackground('#f5c518').setFontColor('#0d1117').setFontWeight('bold');
+
+  sheet.setColumnWidth(1, 200);
+  for (var c = 2; c <= 11; c++) sheet.setColumnWidth(c, 80);
+}
+
 function _setupImportTab(sheet, tabName) {
   var r = 1;
   var sources = {
-    'ESPN_Import':  { url: 'fantasy.espn.com → My Team → Scoring → Player Rankings → Export',  color: '#c2185b' },
-    'Yahoo_Import': { url: 'football.fantasysports.yahoo.com → Players → Projections → Export', color: '#7b1fa2' },
-    'FP_Import':    { url: 'Generado automáticamente por parseFPProjections_2026()',              color: '#1565c0' },
+    'ESPN_Import':     { url: 'fantasy.espn.com → My Team → Scoring → Player Rankings → Export CSV',               color: '#c2185b' },
+    'Yahoo_Import':    { url: 'football.fantasysports.yahoo.com → Players → Projections → Export',                  color: '#7b1fa2' },
+    'FP_Import':       { url: 'Generado automáticamente por parseFPProjections_2026()',                              color: '#1565c0' },
+    'Underdog_Import': { url: 'underdogfantasy.com/blog → busca "Season Projections" → pega en formato estándar',   color: '#b45309' },
+    'Sleeper_Import':  { url: 'Auto-populado por fetchSleeperProjections_2026() — o pega manualmente desde sleeper.com/stats', color: '#374151' },
   };
   var src = sources[tabName] || { url: '', color: '#374151' };
 
@@ -272,9 +320,12 @@ function buildProjectionComparison_2026() {
 
   // Read each source into a map: playerName → Custom Points
   var sources = [
-    { name: 'FP',    tab: 'FP_Import'    },
-    { name: 'ESPN',  tab: 'ESPN_Import'  },
-    { name: 'Yahoo', tab: 'Yahoo_Import' },
+    { name: 'FP',       tab: 'FP_Import'       },
+    { name: 'ESPN',     tab: 'ESPN_Import'      },
+    { name: 'Yahoo',    tab: 'Yahoo_Import'     },
+    { name: 'Underdog', tab: 'Underdog_Import'  },
+    { name: 'Vegas',    tab: 'Vegas_Import'     },
+    { name: 'Sleeper',  tab: 'Sleeper_Import'   },
   ];
 
   var sourceMaps = {};
@@ -319,13 +370,16 @@ function buildProjectionComparison_2026() {
     var team = bbData[b][2];
     if (!name || !pos) continue;
 
-    var fp    = sourceMaps['FP']    ? (sourceMaps['FP'][name]    || '') : '';
-    var espn  = sourceMaps['ESPN']  ? (sourceMaps['ESPN'][name]  || '') : '';
-    var yahoo = sourceMaps['Yahoo'] ? (sourceMaps['Yahoo'][name] || '') : '';
-    var ours  = ourMap[name] || '';
+    var fp       = sourceMaps['FP']       ? (sourceMaps['FP'][name]       || '') : '';
+    var espn     = sourceMaps['ESPN']     ? (sourceMaps['ESPN'][name]     || '') : '';
+    var yahoo    = sourceMaps['Yahoo']    ? (sourceMaps['Yahoo'][name]    || '') : '';
+    var underdog = sourceMaps['Underdog'] ? (sourceMaps['Underdog'][name] || '') : '';
+    var vegas    = sourceMaps['Vegas']    ? (sourceMaps['Vegas'][name]    || '') : '';
+    var sleeper  = sourceMaps['Sleeper']  ? (sourceMaps['Sleeper'][name]  || '') : '';
+    var ours     = ourMap[name] || '';
 
-    // Consensus = average of available sources (excluding empty)
-    var vals = [fp, espn, yahoo].filter(function(v) { return v !== ''; });
+    // Consensus = average of ALL available market sources (excludes blanks)
+    var vals = [fp, espn, yahoo, underdog, vegas, sleeper].filter(function(v) { return v !== ''; });
     var consensus = vals.length > 0
       ? parseFloat((vals.reduce(function(a,b){return a+b;}, 0) / vals.length).toFixed(1))
       : '';
@@ -335,7 +389,7 @@ function buildProjectionComparison_2026() {
                  Math.abs(delta) <= 10  ? '✅ Alineado' :
                  Math.abs(delta) <= 25  ? '⚠️ Revisar'  : '🔴 Corregir';
 
-    rows.push([name, pos, team, fp, espn, yahoo, consensus, ours, delta, status]);
+    rows.push([name, pos, team, fp, espn, yahoo, underdog, vegas, sleeper, consensus, ours, delta, status]);
   }
 
   // Write to Projection Hub
@@ -353,70 +407,78 @@ function buildProjectionComparison_2026() {
     .setBackground('#1a1f36').setFontColor('#9ca3af').setHorizontalAlignment('center').setFontStyle('italic');
   r += 2;
 
-  // Table headers
-  hubSheet.getRange(r, 1, 1, 10).setValues([[
+  // Table headers (13 columns now)
+  var COLS = 13;
+  hubSheet.getRange(r, 1, 1, COLS).setValues([[
     'Player', 'Pos', 'Team',
-    'FP Custom', 'ESPN Custom', 'Yahoo Custom',
-    'Consenso', 'Nuestro Actual', 'Δ Consenso', 'Status'
+    'FP', 'ESPN', 'Yahoo', 'Underdog', 'Vegas 🎰', 'Sleeper',
+    'Consenso', 'Nuestro', 'Δ', 'Status'
   ]]).setBackground('#1a3a5c').setFontColor('#ffffff').setFontWeight('bold');
+  // Highlight Vegas column
+  hubSheet.getRange(r, 8).setBackground('#f5c518').setFontColor('#0d1117');
   r++;
 
   // Data rows
   rows.forEach(function(row, idx) {
     var bg = idx % 2 === 0 ? '#f8fafc' : '#ffffff';
-    hubSheet.getRange(r + idx, 1, 1, 10).setValues([row]).setBackground(bg);
+    hubSheet.getRange(r + idx, 1, 1, COLS).setValues([row]).setBackground(bg);
 
-    // Color status cell
-    var status = row[9];
+    // Color status cell (col 13)
+    var status = row[12];
     var stBg   = status === '✅ Alineado' ? '#dcfce7' :
                  status === '⚠️ Revisar'  ? '#fef9c3' :
                  status === '🔴 Corregir' ? '#fee2e2' : bg;
-    hubSheet.getRange(r + idx, 10).setBackground(stBg);
+    hubSheet.getRange(r + idx, 13).setBackground(stBg);
 
-    // Color delta: green if consensus > ours, red if < ours
-    var delta = row[8];
+    // Delta color (col 12)
+    var delta = row[11];
     if (delta !== '') {
-      hubSheet.getRange(r + idx, 9)
+      hubSheet.getRange(r + idx, 12)
         .setFontColor(delta > 0 ? '#15803d' : delta < 0 ? '#dc2626' : '#374151')
         .setFontWeight('bold');
+    }
+
+    // Vegas column highlight when populated
+    if (row[7] !== '') {
+      hubSheet.getRange(r + idx, 8).setBackground('#fefce8').setFontWeight('bold');
     }
   });
   r += rows.length;
 
   // Discrepancy summary
   r += 2;
-  var bigDiffs = rows.filter(function(row) { return row[9] === '🔴 Corregir'; });
+  var bigDiffs = rows.filter(function(row) { return row[12] === '🔴 Corregir'; });
   if (bigDiffs.length > 0) {
-    hubSheet.getRange(r, 1, 1, 10).merge()
+    hubSheet.getRange(r, 1, 1, COLS).merge()
       .setValue('🔴 DISCREPANCIAS GRANDES (Δ > 25 pts) — Revisar antes del draft')
       .setBackground('#7f1d1d').setFontColor('#ffffff').setFontWeight('bold');
     r++;
     bigDiffs.forEach(function(row, idx) {
       var bg = idx % 2 === 0 ? '#fef2f2' : '#fff5f5';
-      hubSheet.getRange(r + idx, 1, 1, 10).setValues([row]).setBackground(bg);
+      hubSheet.getRange(r + idx, 1, 1, COLS).setValues([row]).setBackground(bg);
     });
   }
 
   // Column widths
-  hubSheet.setColumnWidth(1, 195);
-  hubSheet.setColumnWidth(2, 55);
-  hubSheet.setColumnWidth(3, 55);
-  [4,5,6,7,8].forEach(function(c) { hubSheet.setColumnWidth(c, 90); });
-  hubSheet.setColumnWidth(9, 90);
-  hubSheet.setColumnWidth(10, 110);
-  hubSheet.setFrozenRows(r - rows.length - 1); // freeze headers
+  hubSheet.setColumnWidth(1, 185);
+  hubSheet.setColumnWidth(2, 50);
+  hubSheet.setColumnWidth(3, 50);
+  [4,5,6,7,8,9,10,11].forEach(function(c) { hubSheet.setColumnWidth(c, 75); });
+  hubSheet.setColumnWidth(12, 75);
+  hubSheet.setColumnWidth(13, 110);
+  hubSheet.setFrozenRows(r - rows.length - 1);
 
   SpreadsheetApp.flush();
-  var filled  = rows.filter(function(row){ return row[6] !== ''; }).length;
+  var filled   = rows.filter(function(row){ return row[9] !== ''; }).length;
   var corregir = bigDiffs.length;
   SpreadsheetApp.getUi().alert(
     '✅ Comparativa construida.\n\n' +
     '  Jugadores con consenso: ' + filled + '\n' +
-    '  ✅ Alineados:  ' + rows.filter(function(r){return r[9]==='✅ Alineado';}).length + '\n' +
-    '  ⚠️ Revisar:   ' + rows.filter(function(r){return r[9]==='⚠️ Revisar';}).length + '\n' +
+    '  ✅ Alineados:  ' + rows.filter(function(row){return row[12]==='✅ Alineado';}).length + '\n' +
+    '  ⚠️ Revisar:   ' + rows.filter(function(row){return row[12]==='⚠️ Revisar';}).length + '\n' +
     '  🔴 Corregir:  ' + corregir + '\n\n' +
-    'Corre updateScoringCalcFromConsensus_2026() para actualizar.'
-  );
+    'Vegas 🎰 disponible en agosto — agrega las season props cuando salgan.\n' +
+    'Corre updateScoringCalcFromConsensus_2026() para actualizar Scoring Calc.'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -425,7 +487,7 @@ function buildProjectionComparison_2026() {
 function updateScoringCalcFromConsensus_2026() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  var sources = ['FP_Import', 'ESPN_Import', 'Yahoo_Import'];
+  var sources = ['FP_Import', 'ESPN_Import', 'Yahoo_Import', 'Underdog_Import', 'Vegas_Import', 'Sleeper_Import'];
   var allStats = {}; // playerName → array of stat arrays
 
   sources.forEach(function(tabName) {
@@ -504,4 +566,122 @@ function updateScoringCalcFromConsensus_2026() {
     'Recuerda correr setupBigBoardFormulas_2026() en BIGBOARD.gs\n' +
     'para que el Big Board refleje los nuevos Custom Points.'
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. SLEEPER AUTO-FETCH — intenta obtener proyecciones de la API pública
+//    API gratuita, sin autenticación. Datos semanales disponibles desde preseason.
+//    Llama a Sleeper player DB + projections y normaliza al formato estándar.
+// ─────────────────────────────────────────────────────────────────────────────
+function fetchSleeperProjections_2026() {
+  var ss    = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Sleeper_Import');
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert('Corre primero setupProjectionHub_2026()');
+    return;
+  }
+
+  var ui = SpreadsheetApp.getUi();
+  ui.alert('⏳ Intentando conectar con la API de Sleeper...\nEsto puede tomar 15-30 segundos.');
+
+  try {
+    // Step 1: Get Sleeper player DB (maps player_id → name + position)
+    var playersResp = UrlFetchApp.fetch('https://api.sleeper.app/v1/players/nfl', {
+      muteHttpExceptions: true, headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (playersResp.getResponseCode() !== 200) {
+      ui.alert('⚠️ No se pudo conectar con Sleeper API.\nCódigo: ' + playersResp.getResponseCode() + '\nUsa el import manual.');
+      return;
+    }
+    var playerDB = JSON.parse(playersResp.getContentText());
+
+    // Build a map: full_name → { player_id, position, team }
+    var nameMap = {};
+    Object.keys(playerDB).forEach(function(pid) {
+      var p = playerDB[pid];
+      if (!p.full_name || !p.position) return;
+      if (['QB','RB','WR','TE'].indexOf(p.position) < 0) return;
+      nameMap[p.full_name] = { id: pid, pos: p.position, team: p.team || '' };
+    });
+
+    // Step 2: Get season projections (week 0 = season totals in some seasons)
+    // Sleeper uses week 1-18 for regular season; aggregate weeks 1-17 for season totals
+    // For pre-season: try the projections endpoint (may return empty until season starts)
+    var projResp = UrlFetchApp.fetch(
+      'https://api.sleeper.app/v1/projections/nfl/2026/1?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE',
+      { muteHttpExceptions: true, headers: { 'User-Agent': 'Mozilla/5.0' } }
+    );
+
+    var projData = {};
+    if (projResp.getResponseCode() === 200) {
+      var raw = JSON.parse(projResp.getContentText());
+      // raw is array: [{ player_id, stats: { rec, rec_yd, rec_td, rush_att, rush_yd, rush_td, pass_cmp, pass_yd, pass_td, pass_int } }]
+      if (Array.isArray(raw)) {
+        raw.forEach(function(entry) {
+          if (entry && entry.player_id && entry.stats) projData[entry.player_id] = entry.stats;
+        });
+      }
+    }
+
+    if (Object.keys(projData).length === 0) {
+      ui.alert(
+        '⚠️ Sleeper no tiene proyecciones para 2026 aún.\n\n' +
+        'Las proyecciones de Sleeper se publican cuando comienza la preseason (julio-agosto).\n\n' +
+        'Sleeper_Import queda disponible para import manual:\n' +
+        'sleeper.com/stats/nfl/player/[id] → season totals'
+      );
+      return;
+    }
+
+    // Step 3: Match our Big Board players with Sleeper IDs and write projections
+    var bbData  = ss.getSheetByName('Big Board').getDataRange().getValues();
+    var hRow    = _findHeaderRow(sheet);
+    var rows    = [];
+    var matched = 0;
+
+    for (var b = 1; b < bbData.length; b++) {
+      var playerName = String(bbData[b][0]).trim();
+      if (!playerName) continue;
+      var sleeperInfo = nameMap[playerName];
+      if (!sleeperInfo) continue;
+      var stats = projData[sleeperInfo.id];
+      if (!stats) continue;
+
+      var rec     = _n(stats.rec)       || 0;
+      var recYds  = _n(stats.rec_yd)    || 0;
+      var recTDs  = _n(stats.rec_td)    || 0;
+      var carries = _n(stats.rush_att)  || 0;
+      var rushYds = _n(stats.rush_yd)   || 0;
+      var rushTDs = _n(stats.rush_td)   || 0;
+      var comp    = _n(stats.pass_cmp)  || 0;
+      var passYds = _n(stats.pass_yd)   || 0;
+      var passTDs = _n(stats.pass_td)   || 0;
+      var ints    = _n(stats.pass_int)  || 0;
+
+      rows.push([playerName, rec, recYds, recTDs, carries, rushYds, rushTDs, comp, passYds, passTDs, ints]);
+      matched++;
+    }
+
+    if (rows.length === 0) {
+      ui.alert('⚠️ Sleeper respondió pero no se pudieron matchear jugadores. Verifica los nombres en Big Board.');
+      return;
+    }
+
+    var writeRow = hRow + 1;
+    var existing = sheet.getLastRow() - writeRow + 1;
+    if (existing > 0) sheet.getRange(writeRow, 1, Math.max(existing, 1), 11).clearContent();
+    sheet.getRange(writeRow, 1, rows.length, 11).setValues(rows);
+    SpreadsheetApp.flush();
+
+    ui.alert(
+      '✅ Sleeper proyecciones importadas.\n\n' +
+      '  Jugadores encontrados: ' + matched + '\n\n' +
+      'Nota: datos de Week 1 — para season totals proyectados, Sleeper\n' +
+      'consolida mejor en agosto cuando publica sus preseason projections.\n\n' +
+      'Corre buildProjectionComparison_2026() para actualizar la comparativa.'
+    );
+
+  } catch (e) {
+    ui.alert('❌ Error al conectar con Sleeper API:\n' + e.message + '\n\nUsa el import manual.');
+  }
 }
