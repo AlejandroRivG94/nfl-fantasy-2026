@@ -83,20 +83,25 @@ function addVOR_toBigBoard() {
       + '))))))))'
     );
 
-    // Value vs ADP:
+    // Value vs ADP con ajuste de escasez posicional:
     // ADP_Round = CEILING(I / 12, 1) — en qué ronda cae su ADP
-    // Draft_Round_Num = número de ronda ideal (extraído de P16 formula)
-    // Diferencia = ADP_Round - Ideal_Round
-    // + = puedes agarrarlo MÁS TARDE de lo ideal (valor)
-    // - = debes agarrarlo ANTES de lo ideal (costo)
+    // VOR_Round  = ronda que justifica su VOR
+    // Scarcity   = rondas extra de tolerancia según posición:
+    //   QB (1QB) = 0 → posición muy deep, penaliza overpay normal
+    //   WR       = 0 → suficiente profundidad
+    //   RB       = 1 → cliff en R5-6, puedes pagar 1 ronda extra
+    //   TE       = 2 → cliff masivo, McBride/Bowers en R2 siempre justificado
+    // COSTO si pagas más de (1 + scarcity) rondas antes del ideal
+    // VALOR si pagas 2+ rondas después del ideal
     sheet.getRange(r, 18).setFormula(
       '=IF(OR(P'+r+'="",I'+r+'=""),"",'+
       'LET(adp_rnd, CEILING(I'+r+'/12,1),'+
       'vor_rnd,'+
       'IF(P'+r+'>150,1,IF(P'+r+'>100,2,IF(P'+r+'>80,3,IF(P'+r+'>60,4,'+
       'IF(P'+r+'>45,5,IF(P'+r+'>30,6,IF(P'+r+'>20,8,IF(P'+r+'>10,10,12)))))))),'+
+      'scarcity,IF(B'+r+'="TE",2,IF(B'+r+'="RB",1,0)),'+
       'IF(adp_rnd-vor_rnd>1,"✅ VALOR +R"&(adp_rnd-vor_rnd),'+
-      'IF(adp_rnd-vor_rnd<-1,"⚠️ COSTO -R"&ABS(adp_rnd-vor_rnd),'+
+      'IF(adp_rnd-vor_rnd<-(1+scarcity),"⚠️ COSTO -R"&ABS(adp_rnd-vor_rnd),'+
       '"— Precio justo"))))'
     );
   }
