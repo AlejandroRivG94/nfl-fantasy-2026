@@ -373,23 +373,23 @@ function sortBigBoardByCustom_2026() {
 
   SpreadsheetApp.getUi().alert(
     '✅ Big Board ordenado por Custom Points (.8PPR + .2PPC)\n\n' +
-    '── TOP 10 CUSTOM FORMAT (aprox) ──\n' +
-    '1.  Josh Allen      QB BUF  ~482 pts ⚡\n' +
-    '2.  Jalen Hurts     QB PHI  ~448 pts ⚡\n' +
-    '3.  Lamar Jackson   QB BAL  ~449 pts ⚡\n' +
-    '4.  Jayden Daniels  QB WAS  ~444 pts ⚡\n' +
-    '5.  Jahmyr Gibbs    RB DET  ~391 pts\n' +
-    '6.  Saquon Barkley  RB PHI  ~389 pts\n' +
-    '7.  CMC             RB SF   ~388 pts\n' +
-    '8.  Breece Hall     RB NYJ  ~363 pts\n' +
-    '9.  Bijan Robinson  RB ATL  ~359 pts\n' +
-    '10. Josh Jacobs     RB GB   ~331 pts\n\n' +
-    '⚡ INSIGHT CLAVE:\n' +
-    'Allen (ADP 21), Hurts (ADP 66), Jackson (ADP 43)\n' +
-    'están SUBVALORADOS en Half-PPR pero DOMINAN\n' +
-    'en tu formato .8PPR + .2PPC por las carreras.\n\n' +
-    'Gibbs (ADP 2) es el RB#1 real en Custom.\n' +
-    'Chase (ADP 3) baja a ~WR1 pero no top-5 Custom.'
+    '── TOP 10 CUSTOM FORMAT (proyecciones mayo 2026) ──\n' +
+    '1.  Jalen Hurts     QB PHI  ~468 pts ⚡ (ADP 66 = mayor VOR/pick)\n' +
+    '2.  Josh Allen      QB BUF  ~449 pts ⚡ (ADP 21)\n' +
+    '3.  Lamar Jackson   QB BAL  ~441 pts ⚡ (ADP 43)\n' +
+    '4.  Jayden Daniels  QB WAS  ~436 pts ⚡ (ADP 57)\n' +
+    '5.  Jahmyr Gibbs    RB DET  ~391 pts    (ADP 2)\n' +
+    '6.  Saquon Barkley  RB PHI  ~389 pts    (ADP 15)\n' +
+    '7.  CMC             RB SF   ~388 pts    (ADP 6)\n' +
+    '8.  Breece Hall     RB NYJ  ~363 pts    (ADP 33)\n' +
+    '9.  Bijan Robinson  RB ATL  ~359 pts    (ADP 1)\n' +
+    '10. Josh Jacobs     RB GB   ~331 pts    (ADP 32)\n\n' +
+    '⚡ INSIGHT CLAVE (revisado mayo 2026):\n' +
+    'Hurts ADP 66 (R6) con MÁS Custom Pts que Allen ADP 21 (R2)\n' +
+    '→ Hurts tiene el mayor VOR por pick del draft completo.\n' +
+    'Allen sigue siendo el steal de R2, pero si llegas a R6\n' +
+    'sin QB, Hurts es OBLIGATORIO en tu formato.\n\n' +
+    'Actualiza con proyecciones reales en agosto via Projection Hub.'
   );
 }
 
