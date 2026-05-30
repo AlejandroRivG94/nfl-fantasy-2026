@@ -574,7 +574,7 @@ function buildProjectionComparison_2026() {
     '  ⚠️ Revisar:   ' + rows.filter(function(row){return row[12]==='⚠️ Revisar';}).length + '\n' +
     '  🔴 Corregir:  ' + corregir + '\n\n' +
     'Vegas 🎰 disponible en agosto — agrega las season props cuando salgan.\n' +
-    'Corre updateScoringCalcFromConsensus_2026() para actualizar Scoring Calc.'
+    'Corre updateScoringCalcFromConsensus_2026() para actualizar Scoring Calc.')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -780,4 +780,62 @@ function fetchSleeperProjections_2026() {
   } catch (e) {
     ui.alert('❌ Error al conectar con Sleeper API:\n' + e.message + '\n\nUsa el import manual.');
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MASTER REFRESH — sincroniza todos los tabs en el orden correcto
+// Correr SIEMPRE después de actualizar proyecciones o Scoring Calc
+// ─────────────────────────────────────────────────────────────────────────────
+function masterRefresh_2026() {
+  var ui = SpreadsheetApp.getUi();
+  ui.alert(
+    '🔄 Master Refresh iniciando...\n\n' +
+    'ORDEN DE EJECUCIÓN:\n' +
+    '  1. Projection Hub  ← lee FP_Import + Scoring Calc actual\n' +
+    '  2. Big Board        ← lee Scoring Calc actualizado\n' +
+    '  3. Sort Big Board   ← ordena por Custom Points\n' +
+    '  4. VOR + Draft Strategy\n\n' +
+    'Esto tomará ~20 segundos.'
+  );
+
+  // 1. Reconstruir Projection Hub con los datos actuales de todas las fuentes
+  buildProjectionComparison_2026();
+
+  SpreadsheetApp.flush();
+
+  // 2. Refrescar Big Board desde Scoring Calc actualizado
+  // (llamar función de BIGBOARD.gs — requiere que ese script esté en el mismo proyecto)
+  try {
+    setupBigBoardFormulas_2026();
+    SpreadsheetApp.flush();
+    Utilities.sleep(3000);
+    sortBigBoardByCustom_2026();
+    SpreadsheetApp.flush();
+    Utilities.sleep(2000);
+    addFullDraftAnalysis();
+  } catch(e) {
+    ui.alert(
+      '⚠️ No se encontraron funciones de BIGBOARD.gs o VOR.gs.\n' +
+      'Corre manualmente:\n' +
+      '  setupBigBoardFormulas_2026()\n' +
+      '  sortBigBoardByCustom_2026()\n' +
+      '  addFullDraftAnalysis()\n\n' +
+      'Error: ' + e.message
+    );
+    return;
+  }
+
+  ui.alert(
+    '✅ Master Refresh completado.\n\n' +
+    'Todos los tabs están sincronizados:\n' +
+    '  ✅ Projection Hub  — FP vs Nuestro actualizado\n' +
+    '  ✅ Big Board        — Custom Points desde Scoring Calc\n' +
+    '  ✅ VOR / Draft Strategy — recalculados\n\n' +
+    '📋 ESTADO DE DATOS:\n' +
+    '  • Scoring Calc = fuente de verdad (consenso de fuentes)\n' +
+    '  • Big Board = deriva de Scoring Calc\n' +
+    '  • Projection Hub = compara fuentes externas vs Scoring Calc\n\n' +
+    '⚠️ Pending: ESPN_Import, Yahoo_Import, Vegas_Import (agosto)\n' +
+    'Correr de nuevo cuando se agreguen más fuentes.'
+  );
 }
