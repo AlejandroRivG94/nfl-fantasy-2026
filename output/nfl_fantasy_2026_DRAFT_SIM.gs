@@ -93,7 +93,7 @@ function createDraftSimulator_2026() {
   SpreadsheetApp.getUi().alert(
     '✅ Draft Simulator generado (Posición 1 por defecto).\n\n' +
     'Para tu posición real:\n' +
-    '  1. Cambia la celda amarilla (B5) al número 1-12\n' +
+    '  1. Cambia la celda amarilla (B4) al número 1-12\n' +
     '  2. Corre updateSimulatorForPosition_2026()'
   );
 }
@@ -110,16 +110,16 @@ function updateSimulatorForPosition_2026() {
     return;
   }
 
-  var pos = parseInt(sheet.getRange(5, 2).getValue());
+  var pos = parseInt(sheet.getRange(4, 2).getValue());
   if (isNaN(pos) || pos < 1 || pos > 12) {
-    SpreadsheetApp.getUi().alert('Ingresa un número del 1 al 12 en la celda amarilla (B5).');
+    SpreadsheetApp.getUi().alert('Ingresa un número del 1 al 12 en la celda amarilla (B4).');
     return;
   }
 
   var players = _readPlayers(ss);
 
-  // Clear and rewrite pick table section (rows 8 to 8 + ROUNDS + 6 phase labels)
-  var TABLE_START = 8;
+  // Pick table: header row 6, data rows 7-25 (14 rounds + 4 phase labels)
+  var TABLE_START = 6;
   var TABLE_ROWS  = SIM_ROUNDS + 6;
   sheet.getRange(TABLE_START, 1, TABLE_ROWS, 10).clearContent().clearFormat();
   _writePickTable(sheet, players, pos, TABLE_START);
@@ -156,7 +156,7 @@ function _writeHeader(sheet) {
     .setBackground('#fef9c3').setFontWeight('bold').setFontSize(14)
     .setHorizontalAlignment('center');
   sheet.getRange(r, 3, 1, 4).merge()
-    .setValue('← Cambia este número (1-12) y corre  updateSimulatorForPosition_2026()')
+    .setValue('← Celda B4 — Cambia este número (1-12) y corre updateSimulatorForPosition_2026()')
     .setFontColor('#92400e').setFontStyle('italic').setBackground('#fffbeb');
   r += 2;
 
