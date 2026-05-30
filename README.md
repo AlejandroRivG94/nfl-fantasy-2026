@@ -14,8 +14,15 @@ Correr en este orden desde **Extensions → Apps Script** en el Google Sheet:
 | 3 | `output/nfl_fantasy_2026_BIGBOARD.gs` | `runAllVerified_2026()` | Big Board (nombres + grades + **VLOOKUPs B-M** + sort) |
 | 4 | `output/nfl_fantasy_2026_VOR.gs` | `addFullDraftAnalysis()` | Big Board (VOR) + Draft Strategy |
 | 5 | `output/nfl_fantasy_2026_TABS.gs` | `runRemainingTabs_2026()` | SoS + OL Grades + Schedule Flags + OC Changes |
+| 6 | `output/nfl_fantasy_2026_DRAFT_SIM.gs` | `createDraftSimulator_2026()` | Draft Simulator (picks + builds + scenarios + stacks) |
 
 > **Si el Big Board ya tiene nombres pero columnas B-M vacías:** corre solo `setupBigBoardFormulas_2026()` (en BIGBOARD.gs) para instalar los VLOOKUPs sin borrar los datos existentes.
+>
+> **Para cambiar la posición en el simulador:** edita la celda amarilla (B5) en el tab y corre `updateSimulatorForPosition_2026()`.
+
+## Cola de mejoras futuras
+
+- **Coaching Hub** — expandir OC Changes a HC + DC + OC. Impacto completo del coaching staff en cada equipo.
 
 ## Estructura
 
