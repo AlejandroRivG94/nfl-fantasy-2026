@@ -158,10 +158,46 @@ function addVOR_toBigBoard() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PASO 2: Tab de estrategia de draft — responde "¿qué pasa si agarro X en ronda Z?"
+// PASO 2: Tab de estrategia de draft — DINÁMICO, lee del Big Board
+// Siempre refleja los Custom Points y VOR actuales
 // ─────────────────────────────────────────────────────────────────────────────
 function createDraftStrategyTab() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // ── Leer Big Board ──────────────────────────────────────────────────────────
+  // Columnas: [0]Player [1]Pos [2]Team [3]Tier [4]Custom [5]PPR [6]Half [7]Std
+  //           [8]ADP_FP [9]ADP_UD [10]SoS [11]OC [12]Sched [13]Grade [14]Notes
+  //           [15]VOR [16]DraftRound [17]Value_vs_ADP
+  var bbData = ss.getSheetByName('Big Board').getDataRange().getValues();
+
+  var players = [];
+  for (var i = 1; i < bbData.length; i++) {
+    var r = bbData[i];
+    if (!r[0] || !r[1]) continue;
+    var custom = parseFloat(r[4]) || 0;
+    var adp    = parseFloat(r[8]) || 999;
+    if (custom < 10) continue; // skip kickers, DST, empties
+    players.push({
+      name: String(r[0]).trim(), pos: String(r[1]).trim(), team: String(r[2]).trim(),
+      custom: custom, adp: adp, vor: parseFloat(r[15]) || 0,
+      value: String(r[17] || ''), grade: String(r[13] || ''),
+      round: Math.ceil(adp / 12)
+    });
+  }
+
+  // Ordenar por Custom Points
+  players.sort(function(a, b) { return b.custom - a.custom; });
+
+  // Agrupar por posición (ordenados por Custom)
+  var byPos = { QB: [], RB: [], WR: [], TE: [] };
+  players.forEach(function(p) { if (byPos[p.pos]) byPos[p.pos].push(p); });
+
+  // Replacement levels: QB#13, RB#37, WR#37, TE#13
+  var repIdx  = { QB: 12, RB: 36, WR: 36, TE: 12 }; // 0-indexed
+  var repLabel = { QB: 'QB #13', RB: 'RB #37', WR: 'WR #37', TE: 'TE #13' };
+
+  function _fmt(n) { return n ? '~' + Math.round(n) + ' pts' : 'N/A'; }
+  function _adpRound(adp) { return 'R' + Math.ceil(adp/12) + ' (ADP ' + Math.round(adp*10)/10 + ')'; }
 
   // Crear tab si no existe
   var sheet = ss.getSheetByName('Draft Strategy');
@@ -172,25 +208,44 @@ function createDraftStrategyTab() {
   sheet.clearContents();
   sheet.clearFormats();
 
-  // ── SECCIÓN 1: Escasez posicional ─────────────────────────────────────────
+  // ── SECCIÓN 1: Escasez posicional — DINÁMICA ──────────────────────────────
   var row = 1;
-  sheet.getRange(row, 1).setValue('📊 ESCASEZ POSICIONAL — Liga 12 equipos | 14 rondas | Custom .8PPR+.2PPC')
-    .setBackground('#1a1f36').setFontColor('#ffffff').setFontWeight('bold').setFontSize(12);
+  sheet.getRange(row, 1).setValue(
+    '📊 ESCASEZ POSICIONAL — Liga 12 equipos | 14 rondas | Custom .8PPR+.2PPC' +
+    '   [Actualizado automáticamente desde Big Board — ' + new Date().toLocaleDateString() + ']'
+  ).setBackground('#1a1f36').setFontColor('#ffffff').setFontWeight('bold').setFontSize(12);
   sheet.getRange(row, 1, 1, 8).setBackground('#1a1f36');
   row += 2;
 
-  // Headers
-  var scarcityHeaders = ['Posición','Reempl. #','Pts Reempl.','Top Jugador','Top Pts','VOR Top','Cliff en...','Estrategia'];
+  var scarcityHeaders = ['Posición','Reempl. #','Pts Reempl.','Top Jugador','Top Pts','VOR Top','ADP Top','Estrategia'];
   sheet.getRange(row, 1, 1, 8).setValues([scarcityHeaders])
     .setBackground('#283593').setFontColor('#ffffff').setFontWeight('bold');
   row++;
 
-  var scarcity = [
-    ['QB','QB #13','~308 pts','Josh Allen BUF','~482 pts','~+174','Ronda 2-3','Espera: QB13 es jugable. Allen en R2 = robo. Lamar en R4 = valor enorme.'],
-    ['RB','RB #37','~190 pts','Jahmyr Gibbs DET','~391 pts','~+201','Ronda 5-6','Elite RBs se van rápido. Gibbs/Barkley/CMC en R1. Etienne/Jacobs en R3-4.'],
-    ['WR','WR #37','~165 pts','Ja\'Marr Chase CIN','~309 pts','~+144','Ronda 7','Más profundidad. JSN/ARSB/Jefferson en R1. Buena WR2 disponible R4-6.'],
-    ['TE','TE #13','~158 pts','Trey McBride ARI','~229 pts','~+71','Ronda 4-5','CLIFF en TE3. McBride/Bowers = R2. Loveland/Warren = R4. Después cae mucho.'],
-  ];
+  var posOrder = ['QB','RB','WR','TE'];
+  var stratText = {
+    'QB': 'En 1QB espera hasta R2-R6 salvo caída de élite. El QB replacement es jugable. Mahomes (ADP ~89) = mayor VOR por pick.',
+    'RB': 'Elite RBs vuelan en R1-R2. Gibbs/Bijan/CMC/Barkley = anclas. Profundidad baja en R5-6.',
+    'WR': 'Mayor profundidad que RB. WR2-WR3 de valor disponibles hasta R7. Chase/JSN/ARSB en R1.',
+    'TE': 'CLIFF masivo en TE3+. McBride/Bowers en R2 = ventaja toda la temporada. Loveland (CHI Ben Johnson) = R3 valor.'
+  };
+
+  var scarcity = [];
+  posOrder.forEach(function(pos) {
+    var list = byPos[pos];
+    if (!list || list.length === 0) return;
+    var top = list[0];
+    var repIdx_ = repIdx[pos];
+    var rep = list[repIdx_] || list[list.length-1];
+    var repPts = rep ? rep.custom : 0;
+    var vorTop = top.custom - repPts;
+    scarcity.push([
+      pos, repLabel[pos], _fmt(repPts),
+      top.name + ' ' + top.team, _fmt(top.custom), '~+' + Math.round(vorTop),
+      _adpRound(top.adp), stratText[pos] || ''
+    ]);
+  });
+
   sheet.getRange(row, 1, scarcity.length, 8).setValues(scarcity);
   for (var r = row; r < row + scarcity.length; r++) {
     sheet.getRange(r, 1, 1, 8).setBackground(r % 2 === 0 ? '#f8f9fa' : '#ffffff');
@@ -327,53 +382,58 @@ function createDraftStrategyTab() {
   }
   row += strategies.length + 2;
 
-  // ── SECCIÓN 4: Valores por ADP vs Custom — los mayores discrepancias ─────────
-  sheet.getRange(row, 1).setValue('⚡ MAYORES DISCREPANCIAS ADP vs CUSTOM POINTS — OPORTUNIDADES')
+  // ── SECCIÓN 4: Valores por ADP vs Custom — DINÁMICA desde Big Board ─────────
+  sheet.getRange(row, 1).setValue('⚡ OPORTUNIDADES: VALOR vs ADP — leído directamente del Big Board')
     .setBackground('#e65100').setFontColor('#ffffff').setFontWeight('bold').setFontSize(12);
   sheet.getRange(row, 1, 1, 6).setBackground('#e65100');
   row += 2;
 
-  var discHeaders = ['Jugador','Pos','ADP Round','Custom Rank','Diferencia','Por qué'];
+  var discHeaders = ['Jugador','Pos/Team','ADP Round','Custom Pts','VOR','Value vs ADP'];
   sheet.getRange(row, 1, 1, 6).setValues([discHeaders])
     .setBackground('#283593').setFontColor('#ffffff').setFontWeight('bold');
   row++;
 
-  var discrepancies = [
-    ['Josh Allen',       'QB BUF','R2 (ADP 21)', 'Custom #1 QB',  '🔥 R1 value en R2',
-     'ADP 21 pero ~482 Custom pts. Mejor QB del formato .2PPC. Cargas 130+ en tierra.'],
-    ['Jalen Hurts',      'QB PHI','R6 (ADP 66)', 'Custom #3 QB',  '🔥 R2 value en R6',
-     'ADP 66 es absurdo. 120 carries + 10 TDs terrestres. OL élite. Robalo en R6.'],
-    ['Lamar Jackson',    'QB BAL','R4 (ADP 43)', 'Custom #2 QB',  '🔥 R2 value en R4',
-     '140 carries + 950 yds = .2PPC explota. ADP 43 = gran valor en Custom format.'],
-    ['Jayden Daniels',   'QB WAS','R5 (ADP 57)', 'Custom #4 QB',  '✅ R3 value en R5',
-     'Año 3. Kingsbury air raid. 700 rushYds. Daniels como QB2 confiable con upside.'],
-    ['Jahmyr Gibbs',     'RB DET','R1 (ADP 2)',  'Custom #5 RB',  '— Precio justo',
-     'ADP correcto para su valor. Lead back solo + OL élite DET. Confirmed must-draft.'],
-    ['Brock Bowers',     'TE LV', 'R2 (ADP 17)', 'Custom #2 TE',  '— Precio justo',
-     'TE VOR altísimo. Si agarras TE en R2 = ventaja toda la temporada.'],
-    ['Trey McBride',     'TE ARI','R2 (ADP 17)', 'Custom #1 TE',  '— Precio justo',
-     'TE1 overall. ~229 Custom pts vs replacement ~158. VOR = +71. Vale la R2.'],
-    ['Colston Loveland', 'TE CHI','R3 (ADP 36)', 'Custom #4 TE',  '✅ R5 value en R3',
-     'Año 2 CHI. Williams Año 3. Williams-Loveland connection. TE upside enorme.'],
-    ['Jaxson Smith-Njigba','WR SEA','R1 (ADP 5)','Custom #3 WR', '— Precio justo',
-     'ADP 5 refleja su breakout. Metcalf se fue. JSN = WR1 SEA. Darnold lo alimenta.'],
-    ['Breece Hall',      'RB NYJ','R3 (ADP 33)', 'Custom #8 RB',  '✅ Valor en R3',
-     'Frank Reich nuevo OC. Si OL NYJ mejora = top-5 RB. ADP 33 = riesgo razonable.'],
-    ['Patrick Mahomes',  'QB KC', 'R8 (ADP 89)', 'Custom #8 QB',  '✅ R5 value en R8',
-     'ADP 89 para QB #1 de la última década. Custom ~376 pts. R8 es un robo.'],
-    ['Ashton Jeanty',    'RB LV', 'R2 (ADP 13)', 'Custom #11 RB', '⚠️ R3 value en R2',
-     'Año 2 con alto upside pero ADP 13 = R2 de 12 teams. Es caro. Monitorear OL LV.'],
-    ['Omarion Hampton',  'RB LAC','R2 (ADP 17)', 'Custom #9 RB',  '✅ R3 value en R2',
-     'Año 2. 205 carries proyectados. ADP 17 puede ser valor si Herbert lo usa bien.'],
-  ];
-  sheet.getRange(row, 1, discrepancies.length, 6).setValues(discrepancies);
-  for (var r4 = row; r4 < row + discrepancies.length; r4++) {
-    var bg = '#fff3e0';
-    if (String(discrepancies[r4-row][4]).indexOf('🔥') !== -1) bg = '#e8f5e9';
-    if (String(discrepancies[r4-row][4]).indexOf('⚠️') !== -1) bg = '#ffebee';
-    sheet.getRange(r4, 1, 1, 6).setBackground(bg);
+  // Encontrar los mayores VALOR (✅) por VOR, luego Precio Justo con VOR alto
+  var valores = players.filter(function(p) {
+    return p.value.indexOf('✅') !== -1 && p.vor > 0 && ['QB','RB','WR','TE'].indexOf(p.pos) >= 0;
+  }).sort(function(a, b) { return b.vor - a.vor; }).slice(0, 15);
+
+  // Si hay pocos VALOR, añadir los de mayor VOR con precio justo
+  if (valores.length < 10) {
+    var extras = players.filter(function(p) {
+      return p.value.indexOf('✅') === -1 && p.vor > 50;
+    }).sort(function(a, b) { return b.vor - a.vor; }).slice(0, 10 - valores.length);
+    valores = valores.concat(extras);
   }
-  row += discrepancies.length + 2;
+
+  var discRows = [];
+  valores.forEach(function(p) {
+    var adpRoundNum = Math.ceil(p.adp / 12);
+    var vorRoundNum = adpRoundNum > 1 ? adpRoundNum - 1 : 1; // approximate ideal round
+    var label = p.value.indexOf('✅') !== -1
+      ? '✅ VALOR +R' + (adpRoundNum - vorRoundNum)
+      : '— Precio justo (alto VOR)';
+    discRows.push([
+      p.name, p.pos + ' ' + p.team,
+      _adpRound(p.adp),
+      _fmt(p.custom),
+      '~+' + Math.round(p.vor),
+      p.value || label
+    ]);
+  });
+
+  if (discRows.length > 0) {
+    sheet.getRange(row, 1, discRows.length, 6).setValues(discRows);
+    for (var r4 = row; r4 < row + discRows.length; r4++) {
+      var bg4 = '#fff3e0';
+      var val4 = String(discRows[r4-row][5]);
+      if (val4.indexOf('✅') !== -1) bg4 = '#e8f5e9';
+      if (val4.indexOf('⚠️') !== -1) bg4 = '#ffebee';
+      sheet.getRange(r4, 1, 1, 6).setBackground(bg4);
+    }
+    row += discRows.length;
+  }
+  row += 2;
 
   // ── SECCIÓN 5: Anchos de columna ─────────────────────────────────────────
   sheet.setColumnWidth(1, 200);
