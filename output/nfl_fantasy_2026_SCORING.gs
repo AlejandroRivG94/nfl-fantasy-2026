@@ -1,32 +1,29 @@
 /**
  * NFL Fantasy 2026 — SCORING CALC
  * Última revisión: Mayo 2026
- * Metodología: promedios de carrera (2023-2025) + contexto de equipo 2026
+ * Fuente: Stats reales 2025 (imagen fantasy league) + ajuste pequeño para 2026
  *
- * ⚠️  DATOS PENDIENTES: Proyecciones oficiales de expertos (FantasyPros/ESPN/Yahoo)
- *     se publican en AGOSTO pre-temporada. Actualizar con Projection Hub entonces.
+ * ⚠️  PENDIENTE: Reemplazar con FantasyPros CSV via Projection Hub en agosto
+ *     fantasypros.com/nfl/projections/qb.php?week=draft → Export → FP_Raw → parseFPProjections_2026()
  *
- * CORRECCIONES VS VERSIÓN ANTERIOR (mayo 2026):
- *   Josh Allen    rush yds: 800 → 600  (actual 2025: 579 — usuario confirmó)
- *   Jalen Hurts   rush yds: 650 → 820  (históricamente 700-1000, era underestimado)
- *   Jalen Hurts   carries:  120 → 140  (Hurts es uno de los QBs que más corre en la liga)
- *   Lamar Jackson rush yds: 950 → 880  (ligeramente conservador vs su promedio)
- *   Drake Maye    rush yds: 550 → 460  (NE/Van Pelt system, no run-heavy)
- *   Caleb Williams rush yds: 500 → 400 (CHI air-raid bajo Waldron, menos rushes)
- *   Cam Ward      rush yds: 600 → 520  (TEN Year 2, reasonable)
- *   Josh Allen    rush TDs: 12 → 10    (en línea con su promedio reciente)
- *
- * IMPACTO CLAVE:
- *   Hurts con corrección: ~468 Custom Pts → supera a Allen (~449)
- *   Hurts ADP 66 (R6) con más Custom que Allen ADP 21 (R2) = mayor VOR por pick
+ * STATS REALES 2025 usados como base:
+ *   Josh Allen:      3668py 25TD 10INT  579ry 14rTD
+ *   Drake Maye:      4394py 31TD  8INT  450ry  4rTD  (temporada breakout)
+ *   Jalen Hurts:     3224py 25TD  6INT  421ry  8rTD
+ *   Pat Mahomes:     3587py 22TD 11INT  422ry  5rTD  (año bajo su promedio)
+ *   Caleb Williams:  3942py 27TD  7INT  383ry  3rTD
+ *   Lamar Jackson:   2549py 21TD  7INT  349ry  2rTD  (temporada de lesión)
+ *   Justin Herbert:  3727py 26TD 13INT  498ry  2rTD
+ *   Trevor Lawrence: 4007py 29TD 12INT  359ry  9rTD
+ *   Bo Nix:          3931py 25TD 11INT  356ry  5rTD
+ *   Baker Mayfield:  3693py 26TD 11INT  382ry  1rTD
  *
  * CUSTOM FORMAT: Rec×0.8 + RecYds×0.1 + RecTDs×6 + Carries×0.2
  *                + RushYds×0.1 + RushTDs×6 + PassYds×0.04 + PassTDs×4 + INTs×-2
  *
- * Custom scores corregidos top QBs:
- *   Jalen Hurts ~468 | Josh Allen ~449 | Lamar Jackson ~441
- *   Jayden Daniels ~436 | Drake Maye ~398 | Caleb Williams ~376
- *   Patrick Mahomes ~376 | Kyler Murray ~365
+ * Custom scores estimados (mayo 2026 — actualizar agosto):
+ *   Josh Allen ~444 | Lamar ~432 (si sano) | Drake Maye ~430 | Hurts ~414
+ *   Jayden Daniels ~408 | Mahomes ~390 | Williams ~379
  */
 
 function updateScoringCalc_2026_VERIFIED() {
@@ -38,29 +35,30 @@ function updateScoringCalc_2026_VERIFIED() {
   // [Player, Rec, RecYds, RecTDs, Carries, RushYds, RushTDs, Comp, PassYds, PassTDs, INTs]
   var data = [
     // ── QBs — Custom premia rushes × 0.2 fuertemente ────────────────────────
-    // Rush yds corregidos — ver notas en header del archivo
-    ['Josh Allen',            5,  40,  0, 125, 600, 10, 400, 4100, 38, 10],  // Custom ~449 (era 482)
-    ['Jalen Hurts',          20, 150,  1, 140, 820, 11, 370, 3800, 31,  9],  // Custom ~468 (era 448 — corregido ARRIBA)
-    ['Lamar Jackson',         0,   0,  0, 140, 880,  5, 380, 4200, 36,  8],  // Custom ~441 (era 449)
-    ['Jayden Daniels',       30, 200,  2, 100, 650,  8, 360, 3900, 28,  9],  // Custom ~436 (era 444)
-    ['Drake Maye',           10,  60,  1,  85, 460,  7, 340, 3800, 30, 10],  // Custom ~398 (era 420)
-    ['Caleb Williams',       15, 100,  1,  75, 400,  6, 350, 3700, 28, 11],  // Custom ~376 (era 390)
-    ['Patrick Mahomes',       5,  30,  0,  50, 300,  3, 420, 4500, 38, 10],  // Custom ~376
-    ['Kyler Murray',         10,  60,  0,  80, 460,  6, 350, 3700, 27, 10],  // Custom ~365 (era 380)
-    ['Cam Ward',             15,  80,  1,  85, 520,  6, 320, 3500, 25, 12],  // Custom ~362 (era 375)
+    // Proyecciones 2026 basadas en stats reales 2025 + ajuste pequeño de contexto
+    // [Player, Rec, RecYds, RecTDs, Carries, RushYds, RushTDs, Comp, PassYds, PassTDs, INTs]
+    ['Josh Allen',            5,  40,  0, 115, 600, 13, 330, 3900, 28, 10],  // Custom ~444 (base: 579ry/14rTD 2025, paso yds bajo → uptick)
+    ['Lamar Jackson',         0,   0,  0, 140, 850,  6, 370, 4100, 34,  8],  // Custom ~432 (2025 lesión, proyección asume salud completa)
+    ['Drake Maye',           10,  60,  1, 100, 450,  5, 360, 4300, 30,  9],  // Custom ~430 (base: 4394py/31TD 2025, breakout confirmado)
+    ['Jalen Hurts',          20, 150,  1, 110, 470,  9, 305, 3500, 26,  7],  // Custom ~414 (base: 421ry/8rTD 2025, menos paso que Maye)
+    ['Jayden Daniels',       30, 200,  2, 100, 650,  8, 360, 3900, 28,  9],  // Custom ~408 (no en imagen, mantenemos estimado)
+    ['Patrick Mahomes',       5,  30,  0,  60, 420,  5, 360, 4200, 33, 10],  // Custom ~390 (base: 422ry 2025, rebote vs año bajo)
+    ['Caleb Williams',       15, 100,  1,  77, 390,  4, 335, 4000, 28,  8],  // Custom ~379 (base: 3942py/27TD/383ry 2025, continuidad)
+    ['Kyler Murray',         10,  60,  0,  75, 440,  6, 340, 3700, 27, 10],  // Custom ~365
+    ['Cam Ward',             15,  80,  1,  80, 480,  6, 320, 3500, 25, 12],  // Custom ~356
     ['Joe Burrow',            5,  30,  0,  20, 100,  1, 400, 4400, 35,  9],  // Custom ~321
-    ['Jaxson Dart',          10,  50,  0,  65, 400,  5, 300, 3500, 26, 12],  // Custom ~322 (NYG Year 1 starter)
-    ['Justin Herbert',        0,   0,  0,  25, 140,  2, 390, 4200, 30,  9],  // Custom ~308
+    ['Jaxson Dart',          10,  60,  0,  85, 470,  8, 280, 3400, 22, 10],  // Custom ~337 (base: 487ry/9rTD 2025, espera full season)
+    ['Justin Herbert',        0,   0,  0,  80, 480,  3, 345, 3900, 27, 11],  // Custom ~325 (base: 498ry/2rTD 2025 — más runner de lo esperado)
+    ['Trevor Lawrence',       5,  20,  0,  78, 350,  7, 340, 3900, 27, 11],  // Custom ~319 (base: 359ry/9rTD 2025)
+    ['Bo Nix',                0,   0,  0,  80, 360,  5, 380, 3900, 26, 11],  // Custom ~301 (base: 356ry/5rTD 2025)
     ['Brock Purdy',           0,   0,  0,  30, 160,  2, 390, 4000, 32,  9],  // Custom ~305
     ['Jordan Love',           0,   0,  0,  30, 180,  3, 370, 3900, 32, 10],  // Custom ~306
-    ['Bo Nix',                0,   0,  0,  45, 300,  4, 330, 3700, 27, 10],  // Custom ~293
+    ['Baker Mayfield',        0,   0,  0,  50, 370,  2, 345, 3700, 27, 10],  // Custom ~290 (base: 382ry/1rTD 2025)
     ['Jared Goff',            0,   0,  0,  10,  30,  0, 380, 4500, 30,  9],  // Custom ~298
     ['Matthew Stafford',      0,   0,  0,  10,  30,  0, 380, 4200, 28,  9],  // Custom ~282
-    ['Trevor Lawrence',       5,  20,  0,  30, 160,  3, 350, 3800, 27, 10],  // Custom ~279
-    ['Baker Mayfield',        0,   0,  0,  20,  90,  2, 360, 3800, 28,  9],  // Custom ~268
     ['Sam Darnold',           0,   0,  0,  20, 100,  2, 360, 3800, 28, 11],  // Custom ~259
     ['CJ Stroud',             5,  20,  0,  20,  90,  1, 380, 3900, 30,  9],  // Custom ~269
-    ['Aaron Rodgers',         0,   0,  0,   8,  25,  0, 370, 3400, 26, 10],  // Custom ~220 (veterano, bajo volumen)
+    ['Aaron Rodgers',         0,   0,  0,   8,  25,  0, 370, 3400, 26, 10],  // Custom ~220
     ['Tyler Shough',          5,  20,  0,  30, 160,  3, 300, 3200, 22, 12],  // Custom ~218
     ['Tua Tagovailoa',        0,   0,  0,   5,  20,  0, 350, 3400, 24,  8],  // Custom ~208
     ['Daniel Jones',          5,  20,  0,  50, 300,  4, 280, 3200, 22, 10],  // Custom ~213

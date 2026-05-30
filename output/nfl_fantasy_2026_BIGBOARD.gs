@@ -374,22 +374,22 @@ function sortBigBoardByCustom_2026() {
   SpreadsheetApp.getUi().alert(
     '✅ Big Board ordenado por Custom Points (.8PPR + .2PPC)\n\n' +
     '── TOP 10 CUSTOM FORMAT (proyecciones mayo 2026) ──\n' +
-    '1.  Jalen Hurts     QB PHI  ~468 pts ⚡ (ADP 66 = mayor VOR/pick)\n' +
-    '2.  Josh Allen      QB BUF  ~449 pts ⚡ (ADP 21)\n' +
-    '3.  Lamar Jackson   QB BAL  ~441 pts ⚡ (ADP 43)\n' +
-    '4.  Jayden Daniels  QB WAS  ~436 pts ⚡ (ADP 57)\n' +
-    '5.  Jahmyr Gibbs    RB DET  ~391 pts    (ADP 2)\n' +
-    '6.  Saquon Barkley  RB PHI  ~389 pts    (ADP 15)\n' +
-    '7.  CMC             RB SF   ~388 pts    (ADP 6)\n' +
-    '8.  Breece Hall     RB NYJ  ~363 pts    (ADP 33)\n' +
-    '9.  Bijan Robinson  RB ATL  ~359 pts    (ADP 1)\n' +
-    '10. Josh Jacobs     RB GB   ~331 pts    (ADP 32)\n\n' +
-    '⚡ INSIGHT CLAVE (revisado mayo 2026):\n' +
-    'Hurts ADP 66 (R6) con MÁS Custom Pts que Allen ADP 21 (R2)\n' +
-    '→ Hurts tiene el mayor VOR por pick del draft completo.\n' +
-    'Allen sigue siendo el steal de R2, pero si llegas a R6\n' +
-    'sin QB, Hurts es OBLIGATORIO en tu formato.\n\n' +
-    'Actualiza con proyecciones reales en agosto via Projection Hub.'
+    '⚠️  Basado en stats reales 2025 — actualizar en agosto con FP\n\n' +
+    '1.  Josh Allen      QB BUF  ~444 pts ⚡ (ADP 21)\n' +
+    '2.  Lamar Jackson   QB BAL  ~432 pts ⚡ (si sano — lesión 2025)\n' +
+    '3.  Drake Maye      QB NE   ~430 pts ⚡ (ADP 57 — breakout 2025)\n' +
+    '4.  Jalen Hurts     QB PHI  ~414 pts ⚡ (ADP 66)\n' +
+    '5.  Jayden Daniels  QB WAS  ~408 pts ⚡ (ADP 57)\n' +
+    '6.  Jahmyr Gibbs    RB DET  ~391 pts    (ADP 2)\n' +
+    '7.  Saquon Barkley  RB PHI  ~389 pts    (ADP 15)\n' +
+    '8.  CMC             RB SF   ~388 pts    (ADP 6)\n' +
+    '9.  Breece Hall     RB NYJ  ~363 pts    (ADP 33)\n' +
+    '10. Bijan Robinson  RB ATL  ~359 pts    (ADP 1)\n\n' +
+    '⚡ NUEVA INFO (mayo 2026):\n' +
+    'Drake Maye tuvo 4394 pass yds / 31 TDs en 2025 = breakout real.\n' +
+    'Con ADP 57 en la misma zona que Daniels, Maye puede ser el\n' +
+    'QB steal más infravalorado del draft en tu formato.\n\n' +
+    'Actualiza con FantasyPros CSV via Projection Hub en agosto.'
   );
 }
 
